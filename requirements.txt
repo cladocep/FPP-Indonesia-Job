@@ -1,0 +1,11 @@
+# Core
+python-dotenv
+openai
+
+# Vector DB
+qdrant-client
+
+# CV parsing
+pdfplumber
+PyPDF2
+python-docx
