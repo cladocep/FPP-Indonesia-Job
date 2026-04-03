@@ -62,6 +62,7 @@ def search_qdrant(
     collection_name=QDRANT_COLLECTION,
     query=query_vector,
     limit=top_k,
+    with_payload=True,
 ).points
 
     return [
