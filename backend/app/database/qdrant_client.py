@@ -58,11 +58,11 @@ def search_qdrant(
 
     query_vector = embed_query(query, openai_client)
 
-    results = qdrant.search(
-        collection_name=QDRANT_COLLECTION,
-        query_vector=query_vector,
-        limit=top_k,
-    )
+    results = qdrant.query_points(
+    collection_name=QDRANT_COLLECTION,
+    query=query_vector,
+    limit=top_k,
+).points
 
     return [
         {
