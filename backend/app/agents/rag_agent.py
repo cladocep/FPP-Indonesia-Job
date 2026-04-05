@@ -34,6 +34,8 @@ Rules:
 5. If multiple jobs match, summarize the key ones (max 5).
 6. ALWAYS cite your sources using the format [Source: Company - Job Title] after each piece of information.
 7. At the end of your answer, add a "Sumber:" section listing all documents used.
+8. If no exact match is found, suggest similar or related roles from the documents available.
+   For example, if user asks about "frontend developer" but only "fullstack" or "software engineer" exists, mention those as alternatives.
 
 Documents:
 {context}
