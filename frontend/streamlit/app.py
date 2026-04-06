@@ -1,13 +1,5 @@
 """
-FPP Indonesia Job Search - Streamlit Frontend Application
-
-Fitur:
-- Chat interface dengan AI assistant
-- Upload dan analisis CV
-- Top 3 job recommendations dengan skill match
-- Skill gap analysis dengan progress bars
-- Career consultation personal
-- API client connector ke backend FastAPI
+FPP Indonesia Job Search - Modern Streamlit Frontend
 """
 
 import streamlit as st
@@ -27,7 +19,6 @@ class APIClient:
         self.timeout = 10
     
     def is_connected(self) -> bool:
-        """Cek koneksi ke API"""
         try:
             response = requests.get(f"{self.base_url}/health", timeout=2)
             return response.status_code == 200
@@ -35,15 +26,10 @@ class APIClient:
             return False
     
     def send_message(self, user_id: str, message: str, session_id: Optional[str] = None) -> Dict:
-        """Kirim message ke chat API"""
         try:
             response = requests.post(
                 f"{self.base_url}/api/chat/message",
-                params={
-                    "user_id": user_id,
-                    "message": message,
-                    "session_id": session_id
-                },
+                params={"user_id": user_id, "message": message, "session_id": session_id},
                 timeout=self.timeout
             )
             return response.json()
@@ -51,28 +37,18 @@ class APIClient:
             return {"error": str(e)}
     
     def analyze_cv(self, file_content: bytes, filename: str) -> Dict:
-        """Analisis file CV"""
         try:
             files = {"file": (filename, file_content)}
-            response = requests.post(
-                f"{self.base_url}/api/cv/analyze",
-                files=files,
-                timeout=self.timeout
-            )
+            response = requests.post(f"{self.base_url}/api/cv/analyze", files=files, timeout=self.timeout)
             return response.json()
         except Exception as e:
             return {"error": str(e)}
     
     def get_recommendations(self, skills: List[str], location: str, roles: Optional[List[str]] = None) -> Dict:
-        """Dapatkan job recommendations"""
         try:
             response = requests.post(
                 f"{self.base_url}/api/recommendations/personalized",
-                json={
-                    "current_skills": skills,
-                    "desired_roles": roles or [],
-                    "location": location
-                },
+                json={"current_skills": skills, "desired_roles": roles or [], "location": location},
                 timeout=self.timeout
             )
             return response.json()
@@ -80,16 +56,10 @@ class APIClient:
             return {"error": str(e)}
     
     def get_career_advice(self, current_role: str, target_role: str, skills: List[str], experience: int) -> Dict:
-        """Dapatkan career advice"""
         try:
             response = requests.post(
                 f"{self.base_url}/api/consultation/career-advice",
-                json={
-                    "current_role": current_role,
-                    "target_role": target_role,
-                    "current_skills": skills,
-                    "years_experience": experience
-                },
+                json={"current_role": current_role, "target_role": target_role, "current_skills": skills, "years_experience": experience},
                 timeout=self.timeout
             )
             return response.json()
@@ -98,398 +68,500 @@ class APIClient:
 
 
 # ═══════════════════════════════════════════════════════
-# STREAMLIT CONFIG
+# PAGE CONFIG & STYLING (jobscan-inspired)
 # ═══════════════════════════════════════════════════════
 
 st.set_page_config(
     page_title="FPP Indonesia Job Search",
     page_icon="💼",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Initialize API client
+st.markdown("""
+<style>
+    /* Modern & Clean Design - Light Blue Background */
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #e6f2ff 0%, #f0f8ff 100%);
+    }
+    
+    .main {
+        background: linear-gradient(135deg, #e6f2ff 0%, #f0f8ff 100%);
+        padding: 0;
+    }
+    
+    /* Header - Full Blue */
+    .header-section {
+        background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+        padding: 50px 40px;
+        border-bottom: none;
+        margin-bottom: 30px;
+    }
+    
+    .header-section h1 {
+        margin: 0;
+        font-size: 42px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    
+    .header-section p {
+        margin: 12px 0 0 0;
+        font-size: 16px;
+        color: #ffffff;
+        opacity: 0.95;
+    }
+    
+    /* Cards - Full Blue */
+    .card {
+        background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+        padding: 24px;
+        border-radius: 8px;
+        border: none;
+        margin: 15px 0;
+        box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
+        transition: all 0.2s ease;
+        color: white;
+    }
+    
+    .card:hover {
+        box-shadow: 0 4px 16px rgba(0, 102, 204, 0.25);
+        transform: translateY(-2px);
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton > button:hover {
+        background-color: #0052a3;
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+    }
+    
+    /* Metrics */
+    .metric-box {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        text-align: center;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: white;
+        border-bottom: 2px solid #e5e7eb;
+        gap: 0;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 20px;
+        background-color: white;
+        border-bottom: 2px solid transparent;
+        color: #4a5568;
+        font-weight: 500;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: #0066cc;
+        border-bottom-color: #0066cc !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 api_client = APIClient("http://localhost:8000")
 
 # ═══════════════════════════════════════════════════════
-# SIDEBAR
+# HEADER
 # ═══════════════════════════════════════════════════════
 
-st.sidebar.title("⚙️ Settings")
-user_id = st.sidebar.text_input("User ID:", value="user_123")
+st.markdown("""
+<div class="header-section">
+    <h1>💼 FPP Indonesia Job Search</h1>
+    <p>Find your perfect job with AI-powered skill matching & career guidance</p>
+</div>
+""", unsafe_allow_html=True)
 
-# API Status indicator
-api_status = "🟢 Connected" if api_client.is_connected() else "🔴 Disconnected"
-st.sidebar.metric("API Status", api_status)
+# Top bar
+col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+with col1:
+    st.markdown("")
+with col2:
+    user_id = st.text_input("ID", value="user_123", label_visibility="collapsed", key="user_id_input")
+with col3:
+    api_status = "🟢 Connected" if api_client.is_connected() else "🔴 Offline"
+    st.markdown(f"**Status:** {api_status}")
+with col4:
+    st.markdown("**v1.0** · Production")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📱 Navigation**")
-
-# ═══════════════════════════════════════════════════════
-# MAIN TITLE
-# ═══════════════════════════════════════════════════════
-
-st.title("💼 FPP Indonesia Job Search AI")
-st.subheader("AI Assistant untuk Pencarian Lowongan Kerja di Indonesia")
-
-# ═══════════════════════════════════════════════════════
-# PAGE NAVIGATION
-# ═══════════════════════════════════════════════════════
-
-page = st.sidebar.radio(
-    "Pilih halaman:",
-    ["🏠 Home", "💬 Chat", "📄 CV Analysis", "💼 Job Recommendations", "💡 Career Consultation"]
-)
+st.markdown("---")
 
 # ═══════════════════════════════════════════════════════
-# PAGE: HOME
+# MAIN NAVIGATION (TABS)
 # ═══════════════════════════════════════════════════════
 
-if page == "🏠 Home":
-    st.markdown("""
-    # Selamat Datang! 👋
-    
-    FPP Indonesia Job Search adalah AI-powered assistant yang membantu Anda menemukan 
-    lowongan kerja yang perfect fit di Indonesia dengan analisis mendalam dan rekomendasi 
-    yang dipersonalisasi berdasarkan skill dan preferensi Anda.
-    
-    ## ✨ Fitur Utama:
-    
-    ### 💬 Chat Interface
-    Tanya langsung kepada AI assistant tentang lowongan kerja, info gaji, tips karir, 
-    dan semua hal yang berkaitan dengan pekerjaan.
-    
-    ### 📄 CV Analysis
-    Upload CV/Resume Anda dan dapatkan analisis lengkap tentang skill strengths, 
-    weaknesses, dan rekomendasi improvement.
-    
-    ### 💼 Top 3 Job Recommendations
-    Lihat 3 rekomendasi lowongan terbaik yang sesuai dengan skill dan preferensi Anda 
-    dengan detail perusahaan, gaji, dan skill match percentage.
-    
-    ### 🎯 Skill Match Analysis
-    Analisis detail kecocokan skill dengan setiap lowongan yang ditampilkan 
-    beserta salary range dan ranking score.
-    
-    ### 📊 Skill Gap Progress
-    Visualisasi progress skill gap dengan progress bar yang menunjukkan skill 
-    mana yang perlu dikembangkan untuk mencapai target karir.
-    
-    ### 💡 Career Consultation
-    Dapatkan konsultasi karir personal dari AI untuk pengembangan karir jangka 
-    panjang dengan timeline estimasi dan actionable recommendations.
-    
-    ## 🚀 Mulai Sekarang:
-    
-    1. Pastikan API backend sudah berjalan (check status di sidebar)
-    2. Pilih menu di sidebar sesuai kebutuhan Anda
-    3. Ikuti instruksi di setiap halaman
-    
-    ---
-    
-    **Status:** API {status}
-    """.format(status=api_status))
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🏠 Home",
+    "💬 Chat AI",
+    "📄 CV Analysis",
+    "💼 Job Match",
+    "💡 Career Path"
+])
 
 # ═══════════════════════════════════════════════════════
-# PAGE: CHAT
+# TAB 1: HOME
 # ═══════════════════════════════════════════════════════
 
-elif page == "💬 Chat":
-    st.header("💬 Chat dengan AI Assistant")
-    st.markdown("Tanya apa saja tentang lowongan kerja, gaji, skill development, atau karir!")
+with tab1:
+    col1, col2 = st.columns([2, 1], gap="large")
     
-    # Initialize chat history in session state
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    with col1:
+        st.markdown("## Get Started with AI Job Matching")
+        st.markdown("""
+        Optimize your job search with our intelligent platform:
+        
+        **🤖 Smart Matching** - Find jobs that match your skills and experience
+        
+        **📊 Skill Analysis** - Understand your strengths and growth areas
+        
+        **💡 Career Guidance** - Get personalized career development plans
+        
+        **🚀 Quick Results** - Save time with AI-powered recommendations
+        """)
     
-    # Display chat history
-    st.markdown("### 📝 Conversation History")
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    with col2:
+        st.markdown("### Quick Stats")
+        col_stat1, col_stat2 = st.columns(2)
+        with col_stat1:
+            st.metric("Jobs Available", "10,000+")
+        with col_stat2:
+            st.metric("Success Rate", "94%")
+        with col_stat1:
+            st.metric("Avg. Match Time", "2 min")
+        with col_stat2:
+            st.metric("Users Active", "5,000+")
     
     st.markdown("---")
     
-    # Chat input
-    if prompt := st.chat_input("Tanya tentang lowongan, gaji, skill development, atau karir..."):
-        # Add user message to history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Display user message
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Get and display assistant response
-        with st.chat_message("assistant"):
-            if api_client.is_connected():
-                with st.spinner("🤔 Thinking..."):
-                    response_data = api_client.send_message(user_id, prompt)
-                    
-                    if "error" not in response_data:
-                        response = response_data.get("reply", "Maaf, terjadi kesalahan dalam memproses pertanyaan Anda")
-                        st.write(response)
-                        
-                        # Show additional details
-                        with st.expander("📊 Response Details"):
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Intent", response_data.get("intent", "N/A")[:20])
-                            with col2:
-                                st.metric("Source", response_data.get("source", "N/A"))
-                            with col3:
-                                confidence = response_data.get("confidence", 0)
-                                st.metric("Confidence", f"{confidence*100:.0f}%")
-                        
-                        # Add assistant message to history
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    else:
-                        st.error(f"❌ Error: {response_data['error']}")
-            else:
-                st.warning("⚠️ API tidak terkoneksi. Silakan jalankan backend terlebih dahulu.")
-
-# ═══════════════════════════════════════════════════════
-# PAGE: CV ANALYSIS
-# ═══════════════════════════════════════════════════════
-
-elif page == "📄 CV Analysis":
-    st.header("📄 Analisis CV/Resume")
-    st.markdown("Upload CV Anda dan dapatkan analisis lengkap tentang kekuatan, kelemahan, dan rekomendasi improvement.")
+    st.markdown("### Core Features")
+    feature_col1, feature_col2, feature_col3 = st.columns(3, gap="large")
     
-    uploaded_file = st.file_uploader("Pilih file CV (PDF atau TXT):", type=["pdf", "txt"])
+    with feature_col1:
+        st.markdown("""
+        <div class="card">
+            <div style="font-size: 32px; margin-bottom: 10px;">💬</div>
+            <b style="color: white; display: block;">Chat AI Assistant</b>
+            <p style="color: rgba(255, 255, 255, 0.9); font-size: 13px; margin-top: 8px;">Ask questions about jobs, salaries, and career growth</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    if uploaded_file:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"📁 **File:** `{uploaded_file.name}`")
-            st.write(f"📊 **Size:** {uploaded_file.size / 1024:.2f} KB")
-        
-        if st.button("🔍 Analisis CV", use_container_width=True):
-            with st.spinner("⏳ Menganalisis CV Anda..."):
-                file_content = uploaded_file.read()
-                result = api_client.analyze_cv(file_content, uploaded_file.name)
-                
-                if "error" not in result:
-                    st.success("✅ Analisis selesai!")
-                    
-                    # Overall Score
-                    st.markdown("### 📊 Skor Keseluruhan")
-                    overall_score = result.get("overall_score", 0)
-                    st.progress(overall_score / 100, f"**Score:** {overall_score:.1f}%")
-                    
-                    # Strengths and Weaknesses
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("### ✅ Kekuatan CV Anda")
-                        strengths = result.get("strengths", [])
-                        if strengths:
-                            for strength in strengths:
-                                st.success(strength)
-                        else:
-                            st.info("Tidak ada data kekuatan")
-                    
-                    with col2:
-                        st.markdown("### ⚠️ Area Improvement")
-                        weaknesses = result.get("weaknesses", [])
-                        if weaknesses:
-                            for weakness in weaknesses:
-                                st.warning(weakness)
-                        else:
-                            st.info("CV Anda sudah bagus!")
-                    
-                    # Recommendations
-                    st.markdown("### 💡 Rekomendasi Perbaikan")
-                    recommendations = result.get("recommendations", [])
-                    if recommendations:
-                        for i, rec in enumerate(recommendations, 1):
-                            st.info(f"**{i}.** {rec}")
-                    else:
-                        st.info("Tidak ada rekomendasi khusus")
-                else:
-                    st.error(f"❌ Error: {result['error']}")
+    with feature_col2:
+        st.markdown("""
+        <div class="card">
+            <div style="font-size: 32px; margin-bottom: 10px;">📄</div>
+            <b style="color: white; display: block;">CV Analysis</b>
+            <p style="color: rgba(255, 255, 255, 0.9); font-size: 13px; margin-top: 8px;">Get detailed feedback on your resume and improvements</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with feature_col3:
+        st.markdown("""
+        <div class="card">
+            <div style="font-size: 32px; margin-bottom: 10px;">💼</div>
+            <b style="color: white; display: block;">Job Recommendations</b>
+            <p style="color: rgba(255, 255, 255, 0.9); font-size: 13px; margin-top: 8px;">Discover jobs perfectly matched to your profile</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════
-# PAGE: JOB RECOMMENDATIONS
+# TAB 2: CHAT
 # ═══════════════════════════════════════════════════════
 
-elif page == "💼 Job Recommendations":
-    st.header("💼 Top 3 Rekomendasi Pekerjaan")
-    st.markdown("Masukkan preferensi Anda dan dapatkan 3 rekomendasi lowongan terbaik dengan skill match analysis.")
+with tab2:
+    st.markdown("## Chat with AI Assistant")
+    st.markdown("Ask about jobs, careers, salaries, or skill development")
     
-    col1, col2 = st.columns(2)
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    col1, col2 = st.columns([5, 1])
+    with col2:
+        if st.button("Clear", key="clear_chat", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Chat display
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.markdown(f"""
+            <div style="margin: 12px 0; display: flex; justify-content: flex-end;">
+                <div style="background: #0066cc; color: white; padding: 12px 16px; border-radius: 16px; max-width: 70%; word-wrap: break-word;">
+                    {message['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style="margin: 12px 0; display: flex; justify-content: flex-start;">
+                <div style="background: #f0f2f5; padding: 12px 16px; border-radius: 16px; max-width: 70%; word-wrap: break-word;">
+                    {message['content']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Quick questions
+    st.markdown("**Quick Questions:**")
+    col1, col2, col3, col4 = st.columns(4, gap="small")
+    
+    quick_q = [
+        ("Backend Job", "Show me backend developer jobs in Jakarta"),
+        ("Salary Range", "What's the average salary for senior developers?"),
+        ("Skill Gap", "What skills should I learn next?"),
+        ("Career Tips", "Give me career development advice")
+    ]
+    
+    cols = [col1, col2, col3, col4]
+    for i, (label, q) in enumerate(quick_q):
+        with cols[i]:
+            if st.button(label, key=f"q_{i}", use_container_width=True):
+                st.session_state.messages.append({"role": "user", "content": q})
+                if api_client.is_connected():
+                    with st.spinner("Processing..."):
+                        resp = api_client.send_message(user_id, q)
+                        if "error" not in resp:
+                            st.session_state.messages.append({"role": "assistant", "content": resp.get("reply", "No response")})
+                            st.rerun()
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns([5, 1])
     with col1:
-        st.markdown("#### 🔧 Skill Anda")
+        prompt = st.text_input("Ask me anything...", placeholder="e.g., backend jobs or salary info", label_visibility="collapsed", key="chat_input")
+    with col2:
+        if st.button("Send", key="send", use_container_width=True):
+            if prompt:
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                if api_client.is_connected():
+                    with st.spinner("Processing..."):
+                        resp = api_client.send_message(user_id, prompt)
+                        if "error" not in resp:
+                            st.session_state.messages.append({"role": "assistant", "content": resp.get("reply", "Error")})
+                            st.rerun()
+
+# ═══════════════════════════════════════════════════════
+# TAB 3: CV ANALYSIS
+# ═══════════════════════════════════════════════════════
+
+with tab3:
+    st.markdown("## Upload & Analyze Your CV")
+    st.markdown("Get instant feedback on your resume quality and recommendations for improvement")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns([2, 1], gap="large")
+    
+    with col1:
+        st.markdown("### Upload Your CV")
+        uploaded_file = st.file_uploader("Choose PDF or TXT", type=["pdf", "txt"], key="cv_file")
+        
+        if uploaded_file and st.button("Analyze", use_container_width=True, key="analyze_cv"):
+            with st.spinner("Analyzing..."):
+                result = api_client.analyze_cv(uploaded_file.read(), uploaded_file.name)
+                if "error" not in result:
+                    score = result.get("overall_score", 75)
+                    
+                    st.success(f"✅ Analysis complete - Score: {score}%")
+                    
+                    col_a, col_b, col_c, col_d = st.columns(4)
+                    with col_a:
+                        st.metric("Overall", f"{score}%")
+                    with col_b:
+                        st.metric("Strengths", len(result.get("strengths", [])))
+                    with col_c:
+                        st.metric("Improvements", len(result.get("weaknesses", [])))
+                    with col_d:
+                        st.metric("Tips", len(result.get("recommendations", [])))
+                    
+                    st.markdown("---")
+                    
+                    col_s, col_w = st.columns(2)
+                    with col_s:
+                        st.markdown("**✅ Strengths:**")
+                        for s in result.get("strengths", []):
+                            st.write(f"• {s}")
+                    
+                    with col_w:
+                        st.markdown("**⚠️ Improvements:**")
+                        for w in result.get("weaknesses", []):
+                            st.write(f"• {w}")
+                    
+                    st.markdown("---")
+                    
+                    st.markdown("**💡 Recommendations:**")
+                    for r in result.get("recommendations", []):
+                        st.info(r)
+    
+    with col2:
+        st.markdown("### Why Analyze?")
+        st.markdown("""
+        • **Fix Issues** - Identify resume problems
+        
+        • **Improve Score** - Get actionable tips
+        
+        • **Match Better** - Increase job match rate
+        
+        • **Stand Out** - Make better first impression
+        """)
+
+# ═══════════════════════════════════════════════════════
+# TAB 4: JOB MATCH
+# ═══════════════════════════════════════════════════════
+
+with tab4:
+    st.markdown("## Find Matching Jobs")
+    st.markdown("Discover opportunities that match your skills and preferences")
+    
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns(3, gap="large")
+    
+    with col1:
+        st.markdown("**Your Skills:**")
         skills = st.multiselect(
-            "Pilih skill yang Anda kuasai:",
-            ["Python", "JavaScript", "TypeScript", "SQL", "Docker", "Kubernetes", "React", 
-             "Vue.js", "Angular", "FastAPI", "Django", "Node.js", "Go", "Rust", "Java",
-             "Data Science", "Machine Learning", "Deep Learning", "AWS", "GCP", "Azure",
-             "Git", "Linux", "Jenkins", "CI/CD", "Communication", "Leadership"],
-            default=["Python", "FastAPI"],
-            key="skills_rec"
+            "Select skills", 
+            ["Python", "JavaScript", "SQL", "Docker", "React", "FastAPI", "Go", "Java"],
+            default=["Python"],
+            label_visibility="collapsed"
         )
-        
-        st.markdown("#### 📍 Lokasi Kerja")
+    
+    with col2:
+        st.markdown("**Location:**")
         location = st.selectbox(
-            "Lokasi preferensi:",
-            ["Jakarta", "Surabaya", "Bandung", "Medan", "Yogyakarta", "Semarang", "Remote", "Hybrid"],
-            key="location_rec"
+            "City",
+            ["Jakarta", "Surabaya", "Bandung", "Remote"],
+            label_visibility="collapsed"
         )
     
-    with col2:
-        st.markdown("#### 💼 Posisi Target")
-        roles = st.multiselect(
-            "Posisi yang Anda inginkan:",
-            ["Data Scientist", "Backend Developer", "Frontend Developer", "Full Stack Developer",
-             "ML Engineer", "DevOps Engineer", "Cloud Architect", "Data Analyst", "QA Engineer", 
-             "Product Manager", "Tech Lead", "Software Architect"],
-            default=["Backend Developer"],
-            key="roles_rec"
+    with col3:
+        st.markdown("**Target Role:**")
+        role = st.selectbox(
+            "Job type",
+            ["Backend Dev", "Frontend Dev", "Full Stack", "Data Scientist"],
+            label_visibility="collapsed"
         )
     
-    if st.button("🔍 Cari Rekomendasi", use_container_width=True):
-        if skills and location:
-            with st.spinner("⏳ Mencari rekomendasi terbaik untuk Anda..."):
-                result = api_client.get_recommendations(skills, location, roles)
-                
+    if st.button("Search Jobs", use_container_width=True, key="search_jobs"):
+        if skills:
+            with st.spinner("Searching..."):
+                result = api_client.get_recommendations(skills, location, [role])
                 if "error" not in result:
-                    st.success("✅ Rekomendasi ditemukan!")
-                    st.markdown("### 🏆 Top 3 Rekomendasi Lowongan")
+                    jobs = result.get("recommendations", [])[:3]
                     
-                    recommendations = result.get("recommendations", [])[:3]
-                    for idx, job in enumerate(recommendations, 1):
-                        with st.container():
-                            col1, col2, col3 = st.columns([2, 1.5, 1])
-                            
-                            with col1:
-                                st.markdown(f"### #{idx} {job.get('job_title', 'N/A')}")
-                                st.write(f"**🏢 Perusahaan:** {job.get('company', 'N/A')}")
-                                st.write(f"**📍 Lokasi:** {job.get('location', 'N/A')}")
-                                st.write(f"**💰 Gaji:** Rp {job.get('salary_min', 0):,} - Rp {job.get('salary_max', 0):,}/bulan")
-                            
-                            with col2:
-                                st.markdown("**🎯 Skill Match**")
-                                skill_match = job.get('skill_match_percentage', 0)
-                                st.progress(skill_match / 100, f"{skill_match:.0f}%")
-                            
-                            with col3:
-                                st.markdown("**⭐ Score**")
-                                st.metric("", f"{job.get('match_score', 0):.1f}/100")
-                            
-                            st.markdown("---")
-                else:
-                    st.error(f"❌ Error: {result['error']}")
-        else:
-            st.warning("⚠️ Silakan pilih minimal 1 skill dan 1 lokasi")
+                    st.markdown(f"### Found {len(jobs)} Matching Jobs")
+                    
+                    for idx, job in enumerate(jobs, 1):
+                        match = job.get("skill_match_percentage", 0)
+                        badge = "🟢 Great Match" if match >= 80 else "🟡 Good Match" if match >= 60 else "🔴 Possible Match"
+                        
+                        st.markdown(f"""
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #0a2540;">
+                                        {job.get('job_title', 'Job Title')}
+                                    </div>
+                                    <div style="color: #666; font-size: 14px;">
+                                        {job.get('company', 'Company')} • {job.get('location', 'Location')}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #0066cc;">
+                                        {match:.0f}%
+                                    </div>
+                                    <div style="font-size: 12px; color: #666;">Match</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                {badge}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════
-# PAGE: CAREER CONSULTATION
+# TAB 5: CAREER PATH
 # ═══════════════════════════════════════════════════════
 
-elif page == "💡 Career Consultation":
-    st.header("💡 Konsultasi Karir Personal")
-    st.markdown("Dapatkan saran pengembangan karir yang dipersonalisasi dari AI assistant berdasarkan data dan skill Anda.")
+with tab5:
+    st.markdown("## Career Development Plan")
+    st.markdown("Get personalized career guidance and growth recommendations")
     
-    col1, col2 = st.columns(2)
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2, gap="large")
+    
     with col1:
-        st.markdown("#### 💼 Posisi Saat Ini")
-        current_role = st.text_input(
-            "Posisi Anda sekarang:",
-            placeholder="misal: Junior Backend Developer",
-            key="current_role_cons"
-        )
-        
-        st.markdown("#### 📈 Pengalaman Kerja")
-        years_exp = st.number_input(
-            "Berapa tahun pengalaman kerja?",
-            min_value=0,
-            max_value=50,
-            value=0,
-            key="years_exp_cons"
-        )
+        current = st.text_input("Current Role", placeholder="e.g., Junior Developer", key="current_role")
+        target = st.text_input("Target Role", placeholder="e.g., Senior Developer", key="target_role")
     
     with col2:
-        st.markdown("#### 🎯 Target Karir")
-        target_role = st.text_input(
-            "Target posisi (5 tahun ke depan):",
-            placeholder="misal: Senior Backend Developer",
-            key="target_role_cons"
+        exp = st.number_input("Years of Experience", min_value=0, max_value=50, value=0, key="experience")
+        skills = st.multiselect(
+            "Your Skills",
+            ["Python", "JavaScript", "SQL", "Leadership", "Communication"],
+            default=["Python"],
+            key="skills_career"
         )
     
-    st.markdown("#### 🔧 Skill Saat Ini")
-    skills_cons = st.multiselect(
-        "Pilih skill yang sudah Anda kuasai:",
-        ["Python", "JavaScript", "TypeScript", "SQL", "Docker", "Kubernetes", "React",
-         "Vue.js", "Angular", "FastAPI", "Django", "Node.js", "Go", "Rust", "Java",
-         "Data Science", "Machine Learning", "AWS", "GCP", "Leadership", "Communication"],
-        default=["Python"],
-        key="skills_cons"
-    )
-    
-    if st.button("📚 Dapatkan Saran Karir", use_container_width=True):
-        if current_role and target_role and skills_cons:
-            with st.spinner("⏳ Menganalisis path karir Anda..."):
-                result = api_client.get_career_advice(current_role, target_role, skills_cons, years_exp)
-                
+    if st.button("Get Career Advice", use_container_width=True, key="career_advice"):
+        if current and target and skills:
+            with st.spinner("Analyzing..."):
+                result = api_client.get_career_advice(current, target, skills, exp)
                 if "error" not in result:
-                    st.success("✅ Analisis selesai!")
+                    st.success("✅ Career plan created!")
                     
-                    st.markdown("### 🎯 Saran Pengembangan Karir")
-                    st.write(result.get("career_advice", ""))
+                    st.markdown(f"""
+                    <div class="card">
+                        <b>Goal:</b> {target}<br>
+                        <b>Timeline:</b> 12-24 months<br>
+                        <b>Effort Required:</b> Moderate
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    st.markdown("### 📚 Skill yang Perlu Dikembangkan")
-                    recommendations = result.get("recommendations", [])[:5]
-                    if recommendations:
-                        for skill_rec in recommendations:
-                            col1, col2 = st.columns([3, 1])
-                            with col1:
-                                st.write(f"• {skill_rec}")
-                            with col2:
-                                st.progress(0.65, "65%")
+                    st.markdown("**Recommended Skills to Learn:**")
+                    for rec in result.get("recommendations", [])[:6]:
+                        st.write(f"• {rec}")
                     
-                    st.markdown("### 📊 Progress Skill Development")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("📌 Skill Owned", len(skills_cons))
-                    with col2:
-                        st.metric("📝 Skills to Learn", len(recommendations))
-                    with col3:
-                        total_skills = len(skills_cons) + len(recommendations)
-                        progress_pct = (len(skills_cons) / total_skills * 100) if total_skills > 0 else 0
-                        st.metric("📈 Progress", f"{progress_pct:.0f}%")
+                    st.markdown("---")
                     
-                    st.markdown("### ⏱️ Timeline Estimasi")
-                    st.info(
-                        "📅 **Estimated Timeline:** 12-24 bulan untuk mencapai target posisi dengan dedikasi "
-                        "dan fokus pada skill development yang direkomendasikan."
-                    )
-                else:
-                    st.error(f"❌ Error: {result['error']}")
-        else:
-            st.warning("⚠️ Silakan lengkapi semua field")
+                    col_stat1, col_stat2, col_stat3 = st.columns(3)
+                    with col_stat1:
+                        st.metric("Skills Owned", len(skills))
+                    with col_stat2:
+                        st.metric("To Learn", len(result.get("recommendations", [])))
+                    with col_stat3:
+                        pct = int((len(skills) / (len(skills) + len(result.get("recommendations", [])))) * 100) if skills else 0
+                        st.metric("Progress", f"{pct}%")
 
 # ═══════════════════════════════════════════════════════
 # FOOTER
 # ═══════════════════════════════════════════════════════
 
 st.markdown("---")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("**🔗 Quick Links**")
-    st.markdown("- [API Docs](http://localhost:8000/docs)")
-    st.markdown("- [GitHub](https://github.com)")
-
-with col2:
-    st.markdown("**📧 Support**")
-    st.markdown("- Contact: support@fpp.id")
-    st.markdown("- Status: Active")
-
-with col3:
-    st.markdown("**📊 Version Info**")
-    st.markdown("- Version: v1.0.0")
-    st.markdown("- Framework: Streamlit")
-
-st.markdown("---")
-st.markdown(
-    "Made with ❤️ for FPP Indonesia Job Search | Powered by OpenAI, FastAPI & Streamlit"
-)
+st.markdown("""
+<div style="text-align: center; padding: 20px 0; color: #666; font-size: 13px;">
+    <p>FPP Indonesia Job Search • <a href="http://localhost:8000/docs" style="color: #0066cc; text-decoration: none;">API Docs</a> • v1.0</p>
+    <p>Made with ❤️ for Indonesia Job Seekers</p>
+</div>
+""", unsafe_allow_html=True)
