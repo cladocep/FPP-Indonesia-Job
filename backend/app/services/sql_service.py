@@ -28,9 +28,11 @@ Important notes:
 - The database is SQLite. Use SQLite-compatible syntax.
 - Column `work_type_normalized` contains: full_time, part_time, contract, internship, freelance, remote, hybrid, unknown
 - Column `location_city_norm` and `location_province_norm` are lowercase normalized versions
+- IMPORTANT: For city filtering, ALWAYS use LIKE with wildcards, e.g. location_city_norm LIKE '%jakarta%' NOT location_city_norm = 'jakarta'. Cities are stored as subdistricts like 'jakarta raya', 'jakarta selatan', 'jakarta barat'.
 - Column `skills` is a comma-separated text field (e.g. "python, sql, excel")
 - Columns `salary_min` and `salary_max` are integers (IDR). Many are NULL.
-- For salary queries, always filter WHERE salary_min IS NOT NULL or salary_max IS NOT NULL
+- For salary queries, always filter WHERE salary_min IS NOT NULL OR salary_max IS NOT NULL
+- If no results found with strict filters, relax location or salary filters to return nearby/related results
 - Always use LIMIT to prevent huge results (default LIMIT 20)
 
 Generate ONLY a valid SELECT SQL query. No explanation, no markdown, no backticks.
@@ -165,6 +167,21 @@ def generate_and_execute_query(
     try:
         sql = generate_sql(user_message, openai_client)
         results = run_query(sql)
+
+        # Retry without location filter if no meaningful results found
+        # (handles empty list AND single-row results where all values are None)
+        def is_empty_result(rows: list) -> bool:
+            if not rows:
+                return True
+            if len(rows) == 1 and all(v is None for v in rows[0].values()):
+                return True
+            return False
+
+        if is_empty_result(results):
+            fallback_message = user_message + " (ignore location filter, search nationally across all cities)"
+            sql = generate_sql(fallback_message, openai_client)
+            results = run_query(sql)
+
         answer = format_results(user_message, results, openai_client)
 
         return {
