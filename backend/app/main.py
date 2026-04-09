@@ -11,6 +11,7 @@ from typing import Optional
 
 from backend.app.config import validate_config, APP_PORT
 from backend.app.agents.main_agent import run_agent
+from backend.app.api import routes_chat, routes_cv, routes_recommendation, routes_consultation
 
 # ── FastAPI app ──────────────────────────────────────────────────────────────
 
@@ -19,6 +20,11 @@ app = FastAPI(
     description="AI-powered job search with RAG, SQL, and CV agents",
     version="1.0.0",
 )
+
+app.include_router(routes_chat.router)
+app.include_router(routes_cv.router)
+app.include_router(routes_recommendation.router)
+app.include_router(routes_consultation.router)
 
 
 # ── request/response models ─────────────────────────────────────────────────
