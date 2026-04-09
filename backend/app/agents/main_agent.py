@@ -95,7 +95,7 @@ def handle_chat(user_message: str, openai_client: OpenAI = None) -> str:
                 "role": "system",
                 "content": (
                     "You are a friendly AI assistant for an Indonesian Job Search platform. "
-                    "Respond in the same language the user uses (Indonesian or English). "
+                    "Always respond in Bahasa Indonesia regardless of the language the user writes in. "
                     "Be helpful and guide users to ask about jobs, upload their CV, "
                     "or ask about salary/statistics."
                 ),
@@ -146,7 +146,7 @@ Rules:
 1. Merge the information naturally — don't say "Source 1 says..." or "Source 2 says..."
 2. Lead with the most relevant information
 3. Include both descriptive details AND quantitative data
-4. Respond in the same language the user uses (Indonesian or English)
+4. Always respond in Bahasa Indonesia
 5. Keep source citations if available from Source 1"""
 
     response = openai_client.chat.completions.create(

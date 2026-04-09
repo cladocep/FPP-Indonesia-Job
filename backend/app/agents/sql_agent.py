@@ -259,4 +259,23 @@ def handle_sql_query(
             "Coba tanyakan dengan cara yang berbeda ya!"
         )
 
+    # If results are empty or single-row with all NULLs, retry without location filter
+    def is_empty_result(rows: list) -> bool:
+        if not rows:
+            return True
+        if len(rows) == 1 and all(v is None for v in rows[0].values()):
+            return True
+        return False
+
+    if is_empty_result(results):
+        print(f"[SQL Agent] No results for location-specific query, retrying nationally...")
+        try:
+            fallback_msg = user_message + " (abaikan filter lokasi, cari di semua kota)"
+            sql = generate_sql(fallback_msg, openai_client)
+            print(f"[SQL Agent] Fallback SQL: {sql}")
+            results = execute_query(sql)
+            print(f"[SQL Agent] Fallback returned {len(results)} rows.")
+        except Exception as e:
+            print(f"[SQL Agent] Fallback error: {e}")
+
     return format_results(user_message, results, openai_client)
