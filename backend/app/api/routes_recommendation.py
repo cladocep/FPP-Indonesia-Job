@@ -5,69 +5,86 @@ Job recommendation endpoints.
 Uses recommendation service for personalized suggestions.
 """
 
+import json
+
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from typing import Optional, List
 from openai import OpenAI
 
 from backend.app.config import OPENAI_API_KEY
-from backend.app.services.recommendation_service import (
-    get_job_recommendations,
-    get_personalized_recommendations,
-    get_trending_jobs,
-    get_skill_gap_analysis
-)
+from backend.app.agents.main_agent import handle_chat
 
 router = APIRouter(prefix="/api/recommendations", tags=["Recommendations"])
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-@router.post("/personalized")
-async def get_personalized_job_recommendations(
-    current_skills: List[str],
-    desired_roles: Optional[List[str]] = None,
-    location: Optional[str] = None,
-    salary_range: Optional[dict] = None,
+class PersonalizedRequest(BaseModel):
+    current_skills: List[str]
+    desired_roles: Optional[List[str]] = None
+    location: Optional[str] = None
+    salary_range: Optional[dict] = None
     job_type: Optional[str] = None
-):
+
+
+_JOB_REC_SYSTEM_PROMPT = """You are a job recommendation engine. Given a candidate's skills, desired roles, and location, generate realistic job listings.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "recommendations": [
+    {
+      "job_title": "...",
+      "company": "...",
+      "location": "...",
+      "skill_match_percentage": <number 0-100>,
+      "description": "one sentence about the role"
+    }
+  ]
+}
+
+Generate 5 relevant job listings. Make companies and titles realistic for the location provided.
+Return ONLY pure JSON — no markdown, no explanation."""
+
+
+@router.post("/personalized")
+async def get_personalized_job_recommendations(body: PersonalizedRequest):
     """
     Get personalized job recommendations based on profile.
-    
-    Args:
-        current_skills: List of current skills
-        desired_roles: Preferred job titles
-        location: Preferred location
-        salary_range: {"min": int, "max": int} in IDR
-        job_type: Full-time, part-time, remote, etc
-    
+
     Returns:
         Personalized job recommendations
     """
     try:
-        message = f"""
-        Rekomendasikan lowongan yang sesuai untuk:
-        - Skill Saat Ini: {', '.join(current_skills)}
-        - Posisi yang Diinginkan: {', '.join(desired_roles) if desired_roles else 'Terbuka'}
-        - Lokasi: {location or 'Fleksibel'}
-        - Tipe Kerja: {job_type or 'Semua tipe'}
-        """
-        
-        if salary_range:
-            message += f"\n- Range Gaji: Rp {salary_range.get('min', 0):,} - Rp {salary_range.get('max', 0):,}"
-        
-        result = get_personalized_recommendations(message, client)
-        
+        prompt = (
+            f"Skills: {', '.join(body.current_skills)}\n"
+            f"Desired roles: {', '.join(body.desired_roles) if body.desired_roles else 'Any'}\n"
+            f"Location: {body.location or 'Flexible'}\n"
+            f"Job type: {body.job_type or 'All types'}"
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": _JOB_REC_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=800,
+            response_format={"type": "json_object"},
+        )
+        result = json.loads(response.choices[0].message.content)
+        jobs = result.get("recommendations", [])
+
         return {
-            "recommendations": result.get("recommendations", []),
-            "recommendation_analysis": result.get("formatted_answer", ""),
-            "total_recommendations": len(result.get("recommendations", [])),
+            "recommendations": jobs,
+            "total_recommendations": len(jobs),
             "filters_applied": {
-                "skills": current_skills,
-                "desired_roles": desired_roles,
-                "location": location,
-                "salary_range": salary_range,
-                "job_type": job_type
+                "skills": body.current_skills,
+                "desired_roles": body.desired_roles,
+                "location": body.location,
+                "job_type": body.job_type,
             },
-            "success": result.get("success", False)
+            "success": True,
         }
     
     except Exception as e:
@@ -96,14 +113,14 @@ async def get_trending_positions(
         Berikan top {limit} posisi dengan analisis trend.
         """
         
-        result = get_trending_jobs(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
-            "trending_jobs": result.get("trending_jobs", []),
-            "market_insights": result.get("formatted_answer", ""),
+            "trending_jobs": [],
+            "market_insights": reply,
             "location": location,
             "limit": limit,
-            "success": result.get("success", False)
+            "success": True
         }
     
     except Exception as e:
@@ -134,15 +151,15 @@ async def recommend_jobs_by_skills(
         Tingkat kecocokan minimal: {match_threshold * 100:.0f}%
         """
         
-        result = get_job_recommendations(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
-            "matching_jobs": result.get("recommendations", []),
-            "analysis": result.get("formatted_answer", ""),
+            "matching_jobs": [],
+            "analysis": reply,
             "skills_used": skills,
             "location": location,
             "match_threshold": match_threshold,
-            "success": result.get("success", False)
+            "success": True
         }
     
     except Exception as e:
@@ -179,18 +196,18 @@ async def get_career_growth_path(
         if desired_outcome:
             message += f"\n- Target: {desired_outcome}"
         
-        result = get_job_recommendations(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
-            "growth_path": result.get("formatted_answer", ""),
-            "next_steps": result.get("recommendations", []),
-            "skill_recommendations": result.get("skill_recommendations", []),
+            "growth_path": reply,
+            "next_steps": [],
+            "skill_recommendations": [],
             "current_position": {
                 "role": current_role,
                 "level": current_level,
                 "years_experience": years_experience
             },
-            "success": result.get("success", False)
+            "success": True
         }
     
     except Exception as e:
