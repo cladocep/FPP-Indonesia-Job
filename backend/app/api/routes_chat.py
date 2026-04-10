@@ -11,11 +11,9 @@ from openai import OpenAI
 
 from backend.app.config import OPENAI_API_KEY
 from backend.app.models.response_model import ChatResponse, IntentType
-from backend.app.agents.main_agent import classify_intent
+from backend.app.agents.main_agent import classify_intent, handle_chat
 from backend.app.services.sql_service import generate_and_execute_query
-from backend.app.services.rag_service import search_jobs_rag
-from backend.app.services.cv_service import analyze_cv_with_service
-from backend.app.services.recommendation_service import get_job_recommendations
+from backend.app.services.rag_service import search_and_build_context
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -53,59 +51,22 @@ async def send_message(
         
         # Route based on intent
         if intent in [IntentType.JOB_SEARCH, IntentType.JOB_DETAILS]:
-            # Use RAG service for job search
-            result = search_jobs_rag(message, client)
-            reply = result.get("formatted_answer", "No results found")
+            result = search_and_build_context(message, openai_client=client)
+            reply = result.get("context", "No results found")
             source = "RAG Service"
-            confidence = 0.92
-            metadata = {
-                "type": "rag",
-                "source": "rag_service",
-                "results_count": len(result.get("raw_results", []))
-            }
-        
+
         elif intent in [IntentType.SALARY_INFO, IntentType.LOCATION_STATS]:
-            # Use SQL service for statistics
-            result = generate_and_execute_query(message, client)
+            result = generate_and_execute_query(message, openai_client=client)
             reply = result.get("formatted_answer", "No data available")
             source = "SQL Service"
-            confidence = 0.90
-            metadata = {
-                "type": "sql",
-                "source": "sql_service",
-                "sql_query": result.get("sql", ""),
-                "row_count": result.get("row_count", 0)
-            }
-        
-        elif intent == IntentType.JOB_RECOMMENDATION:
-            # Use recommendation service
-            result = get_job_recommendations(message, client)
-            reply = result.get("formatted_answer", "No recommendations available")
-            source = "Recommendation Service"
-            confidence = 0.88
-            metadata = {
-                "type": "recommendation",
-                "source": "recommendation_service",
-                "recommendations_count": len(result.get("recommendations", []))
-            }
-        
-        elif intent == IntentType.GREETING:
-            reply = "Halo! Saya adalah AI assistant untuk job search di Indonesia. Ada yang bisa saya bantu? 😊"
+
+        elif intent in [IntentType.JOB_RECOMMENDATION, IntentType.GREETING]:
+            reply = handle_chat(message, client)
             source = "General"
-            confidence = 0.99
-            metadata = {
-                "type": "greeting",
-                "source": "general"
-            }
-        
+
         else:
-            reply = "Maaf, saya tidak bisa memproses request ini. Coba tanya tentang lowongan kerja, gaji, atau rekomendasi karir. 🤔"
+            reply = handle_chat(message, client)
             source = "General"
-            confidence = 0.3
-            metadata = {
-                "type": "unknown",
-                "source": "general"
-            }
         
         # Store in conversation history
         if user_id not in conversation_history:
@@ -123,16 +84,9 @@ async def send_message(
         })
         
         return ChatResponse(
-            reply=reply,
-            intent=intent,
+            intent=intent.value if intent else "unknown",
+            response=reply,
             source=source,
-            confidence=confidence,
-            metadata={
-                "user_id": user_id,
-                "session_id": session_id,
-                "history_length": len(conversation_history.get(user_id, [])),
-                "service_metadata": metadata
-            }
         )
     
     except Exception as e:
