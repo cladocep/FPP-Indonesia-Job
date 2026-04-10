@@ -5,64 +5,85 @@ Consultation endpoints for career advice and guidance.
 Uses CV service and recommendation service.
 """
 
+import json
+
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
 
 from backend.app.config import OPENAI_API_KEY
-from backend.app.services.recommendation_service import (
-    get_job_recommendations,
-    get_skill_gap_analysis
-)
+from backend.app.agents.main_agent import handle_chat
 
 router = APIRouter(prefix="/api/consultation", tags=["Consultation"])
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-@router.post("/career-advice")
-async def get_career_advice(
-    current_role: str,
-    current_skills: List[str],
-    target_role: Optional[str] = None,
+class CareerAdviceRequest(BaseModel):
+    current_role: str
+    target_role: Optional[str] = None
+    current_skills: List[str]
     years_experience: int = 0
-) -> Dict[str, Any]:
+
+
+_CAREER_ADVICE_SYSTEM_PROMPT = """You are an expert career counselor. Given a candidate's current role, target role, skills, and experience, provide actionable career advice.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "career_advice": "2-3 sentence summary of overall advice",
+  "recommendations": ["specific skill or action to take", "..."],
+  "timeline": "realistic timeline string e.g. '12-18 months'",
+  "effort": "Low / Moderate / High"
+}
+
+The recommendations list should contain 5-8 concrete, specific skills or actions the person should take to reach their target role.
+Return ONLY pure JSON — no markdown, no explanation."""
+
+
+@router.post("/career-advice")
+async def get_career_advice(body: CareerAdviceRequest) -> Dict[str, Any]:
     """
     Get personalized career advice based on current and target roles.
-    
-    Args:
-        current_role: Current job title
-        current_skills: List of current skills
-        target_role: Desired job title (optional)
-        years_experience: Years of experience
-    
+
     Returns:
         Career advice and recommendations
     """
     try:
-        if not current_role or not current_skills:
+        if not body.current_role or not body.current_skills:
             raise ValueError("current_role and current_skills are required")
-        
-        message = f"""
-        Berikan saran karir untuk:
-        - Posisi Saat Ini: {current_role}
-        - Skill Saat Ini: {', '.join(current_skills)}
-        - Posisi Target: {target_role or 'Belum ditentukan'}
-        - Pengalaman: {years_experience} tahun
-        """
-        
-        result = get_job_recommendations(message, client)
-        
+
+        prompt = (
+            f"Current role: {body.current_role}\n"
+            f"Target role: {body.target_role or 'Not specified'}\n"
+            f"Current skills: {', '.join(body.current_skills)}\n"
+            f"Years of experience: {body.years_experience}"
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": _CAREER_ADVICE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.4,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+        )
+        result = json.loads(response.choices[0].message.content)
+
         return {
             "status": "success",
-            "current_role": current_role,
-            "target_role": target_role,
-            "current_skills": current_skills,
-            "years_experience": years_experience,
-            "career_advice": result.get("formatted_answer", ""),
+            "current_role": body.current_role,
+            "target_role": body.target_role,
+            "current_skills": body.current_skills,
+            "years_experience": body.years_experience,
+            "career_advice": result.get("career_advice", ""),
             "recommendations": result.get("recommendations", []),
-            "success": True
+            "timeline": result.get("timeline", "12-24 months"),
+            "effort": result.get("effort", "Moderate"),
+            "success": True,
         }
-    
+
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Invalid input: {str(ve)}")
     except Exception as e:
@@ -107,18 +128,18 @@ async def analyze_skill_gap(
         4. Estimasi waktu pembelajaran
         """
         
-        result = get_skill_gap_analysis(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
             "status": "success",
             "current_skills": current_skills,
             "target_position": target,
-            "skill_gap_analysis": result.get("formatted_answer", ""),
-            "gap_skills": result.get("gap_skills", []),
-            "matching_skills": result.get("matching_skills", []),
-            "recommended_skills": result.get("recommended_skills", []),
-            "learning_resources": result.get("learning_resources", []),
-            "estimated_learning_time": result.get("estimated_learning_time", "3-6 months"),
+            "skill_gap_analysis": reply,
+            "gap_skills": [],
+            "matching_skills": [],
+            "recommended_skills": [],
+            "learning_resources": [],
+            "estimated_learning_time": "3-6 months",
             "success": True
         }
     
@@ -172,17 +193,17 @@ async def get_salary_negotiation_advice(
         5. Strategi presentasi
         """
         
-        result = get_job_recommendations(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
             "status": "success",
             "current_salary": current_salary,
             "target_role": target_role,
             "location": location,
             "years_experience": years_experience,
-            "salary_advice": result.get("formatted_answer", ""),
-            "negotiation_tips": result.get("recommendations", []),
-            "market_insights": result.get("market_insights", ""),
+            "salary_advice": reply,
+            "negotiation_tips": [],
+            "market_insights": "",
             "success": True
         }
     
@@ -235,17 +256,17 @@ async def get_career_transition_advice(
         6. Tips untuk menarik perhatian recruiter
         """
         
-        result = get_job_recommendations(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
             "status": "success",
             "transition_type": "industry_switch" if industry_switch else "role_switch",
             "from_role": current_role,
             "to_role": target_role,
             "current_skills": current_skills,
-            "transition_advice": result.get("formatted_answer", ""),
-            "action_plan": result.get("recommendations", []),
-            "required_skills": result.get("required_skills", []),
+            "transition_advice": reply,
+            "action_plan": [],
+            "required_skills": [],
             "success": True
         }
     
@@ -299,16 +320,16 @@ async def get_work_life_balance_advice(
         5. Pertanyaan yang harus ditanyakan saat interview
         """
         
-        result = get_job_recommendations(message, client)
-        
+        reply = handle_chat(message, client)
+
         return {
             "status": "success",
             "current_workload": current_workload,
             "work_hours_per_week": work_hours_per_week,
             "job_type_preferred": job_type_preferred,
-            "balance_advice": result.get("formatted_answer", ""),
-            "recommended_companies": result.get("recommended_companies", []),
-            "tips": result.get("recommendations", []),
+            "balance_advice": reply,
+            "recommended_companies": [],
+            "tips": [],
             "success": True
         }
     
