@@ -7,6 +7,19 @@ Used for request/response validation and OpenAPI documentation.
 
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any
+from enum import Enum
+
+
+# ── Intent Type ──────────────────────────────────────────────────────────────
+
+class IntentType(str, Enum):
+    JOB_SEARCH = "job_search"
+    JOB_DETAILS = "job_details"
+    SALARY_INFO = "salary_info"
+    LOCATION_STATS = "location_stats"
+    JOB_RECOMMENDATION = "job_recommendation"
+    GREETING = "greeting"
+    UNKNOWN = "unknown"
 
 
 # ── Chat/Query Response ──────────────────────────────────────────────────────
