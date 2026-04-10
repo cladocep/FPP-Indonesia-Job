@@ -256,15 +256,15 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = 0
 
 if st.session_state.active_tab == 0:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Home", "💬 Chat AI", "📄 CV Analysis", "💼 Job Match", "🎯 Career Path"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"])
 elif st.session_state.active_tab == 1:
-    tab2, tab1, tab3, tab4, tab5 = st.tabs(["💬 Chat AI", "🏠 Home", "📄 CV Analysis", "💼 Job Match", "🎯 Career Path"])
+    tab2, tab1, tab3, tab4, tab5 = st.tabs(["Chat AI", "Home", "CV Analysis", "Job Match", "Career Path"])
 elif st.session_state.active_tab == 2:
-    tab3, tab1, tab2, tab4, tab5 = st.tabs(["📄 CV Analysis", "🏠 Home", "💬 Chat AI", "💼 Job Match", "🎯 Career Path"])
+    tab3, tab1, tab2, tab4, tab5 = st.tabs(["CV Analysis", "Home", "Chat AI", "Job Match", "Career Path"])
 elif st.session_state.active_tab == 3:
-    tab4, tab1, tab2, tab3, tab5 = st.tabs(["💼 Job Match", "🏠 Home", "💬 Chat AI", "📄 CV Analysis", "🎯 Career Path"])
+    tab4, tab1, tab2, tab3, tab5 = st.tabs(["Job Match", "Home", "Chat AI", "CV Analysis", "Career Path"])
 elif st.session_state.active_tab == 4:
-    tab5, tab1, tab2, tab3, tab4 = st.tabs(["🎯 Career Path", "🏠 Home", "💬 Chat AI", "📄 CV Analysis", "💼 Job Match"])
+    tab5, tab1, tab2, tab3, tab4 = st.tabs(["Career Path", "Home", "Chat AI", "CV Analysis", "Job Match"])
 
 # ═══════════════════════════════════════════════════════
 # TAB 1: HOME
@@ -317,8 +317,7 @@ with tab1:
     
     with feat_col1:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">💬</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">Chat AI Assistant</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Ask questions about jobs, salaries, and career growth</p>
         </div>
@@ -326,8 +325,7 @@ with tab1:
     
     with feat_col2:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">📊</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">Job Tracker</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Track your applications and interview progress</p>
         </div>
@@ -338,8 +336,7 @@ with tab1:
     
     with feat_col3:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">📄</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">CV Analysis</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Get detailed feedback on your resume and improvements</p>
         </div>
@@ -347,8 +344,7 @@ with tab1:
     
     with feat_col4:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">💼</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">Job Recommendations</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Discover jobs perfectly matched to your profile</p>
         </div>
@@ -359,8 +355,7 @@ with tab1:
     
     with feat_col5:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">📝</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">Resume Builder</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Create professional resumes with AI assistance</p>
         </div>
@@ -368,8 +363,7 @@ with tab1:
     
     with feat_col6:
         st.markdown("""
-        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 24px; margin-bottom: 12px;">🎯</div>
+        <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
             <b style="color: #0a2540; display: block; font-size: 16px;">Career Development</b>
             <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Get personalized growth path and skill recommendations</p>
         </div>
@@ -664,7 +658,7 @@ with tab4:
                     
                     for idx, job in enumerate(jobs, 1):
                         match = job.get("skill_match_percentage", 0)
-                        badge = "🟢 Great Match" if match >= 80 else "🟡 Good Match" if match >= 60 else "🔴 Possible Match"
+                        badge = "Great Match" if match >= 80 else "Good Match" if match >= 60 else "Possible Match"
                         
                         st.markdown(f"""
                         <div class="card">
