@@ -9,15 +9,50 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import Optional, List
 from openai import OpenAI
 
+import json
+
 from backend.app.config import OPENAI_API_KEY
-from backend.app.services.cv_service import (
-    analyze_cv_with_service,
-    get_cv_improvement_suggestions,
-    match_cv_to_jobs
-)
+from backend.app.services.cv_service import parse_cv, parse_cv_with_llm
+from backend.app.agents.main_agent import handle_chat
 
 router = APIRouter(prefix="/api/cv", tags=["CV"])
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+_SCORING_SYSTEM_PROMPT = """You are an expert CV reviewer. Given structured CV data, score it and provide actionable feedback.
+
+Return ONLY valid JSON with these exact fields:
+{
+  "overall_score": <integer 0-100>,
+  "strengths": ["list of specific strengths found in the CV"],
+  "weaknesses": ["list of specific issues or missing elements"],
+  "recommendations": ["list of concrete improvement tips"]
+}
+
+Scoring rubric (total 100):
+- Contact info complete (name, email, phone): 10 pts
+- Professional summary present: 10 pts
+- Work experience with quantified achievements: 30 pts
+- Skills list (relevant and specific): 20 pts
+- Education details: 10 pts
+- Languages / certifications bonus: 10 pts
+- Overall formatting/completeness: 10 pts
+
+Return ONLY pure JSON — no markdown, no explanation."""
+
+
+def _score_cv(cv_data: dict) -> dict:
+    """Call LLM to score CV and return strengths, weaknesses, recommendations."""
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": _SCORING_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Score this CV data:\n\n{json.dumps(cv_data, indent=2)}"},
+        ],
+        temperature=0.2,
+        max_tokens=800,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.choices[0].message.content)
 
 
 @router.post("/analyze")
@@ -27,37 +62,33 @@ async def analyze_cv(
 ):
     """
     Analyze uploaded CV/Resume.
-    
+
     Args:
         file: PDF or text file of CV
         job_title: Optional target job title for context
-    
+
     Returns:
         CV analysis with scores and insights
     """
     try:
         contents = await file.read()
         filename = file.filename
-        
-        # Decode file content
-        try:
-            cv_text = contents.decode('utf-8')
-        except:
-            cv_text = contents.decode('latin-1')
-        
-        # Analyze CV
-        result = analyze_cv_with_service(cv_text, client, job_title)
-        
+
+        # parse_cv handles PDF/DOCX/TXT extraction properly
+        cv_data = parse_cv(contents, filename, client)
+        scoring = _score_cv(cv_data)
+
         return {
             "filename": filename,
-            "overall_score": result.get("overall_score", 0),
-            "analysis": result.get("formatted_answer", ""),
-            "strengths": result.get("strengths", []),
-            "weaknesses": result.get("weaknesses", []),
-            "keywords_found": result.get("keywords_found", []),
-            "success": result.get("success", False)
+            "overall_score": scoring.get("overall_score", 0),
+            "analysis": cv_data.get("summary", ""),
+            "strengths": scoring.get("strengths", []),
+            "weaknesses": scoring.get("weaknesses", []),
+            "recommendations": scoring.get("recommendations", []),
+            "keywords_found": cv_data.get("skills", []),
+            "success": True
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -87,20 +118,20 @@ async def get_cv_improvements(
         except:
             cv_text = contents.decode('latin-1')
         
-        # Get improvement suggestions
-        result = get_cv_improvement_suggestions(
-            cv_text,
-            client,
-            job_title,
-            industry
-        )
-        
+        prompt = f"Berikan saran peningkatan CV berikut"
+        if job_title:
+            prompt += f" untuk posisi {job_title}"
+        if industry:
+            prompt += f" di industri {industry}"
+        prompt += f":\n\n{cv_text}"
+        reply = handle_chat(prompt, client)
+
         return {
-            "improvement_suggestions": result.get("formatted_answer", ""),
-            "quick_wins": result.get("quick_wins", []),
-            "priority_improvements": result.get("priority_improvements", []),
-            "estimated_impact": result.get("estimated_impact", ""),
-            "success": result.get("success", False)
+            "improvement_suggestions": reply,
+            "quick_wins": [],
+            "priority_improvements": [],
+            "estimated_impact": "",
+            "success": True
         }
     
     except Exception as e:
@@ -132,20 +163,20 @@ async def match_cv_to_positions(
         except:
             cv_text = contents.decode('latin-1')
         
-        # Match CV to jobs
-        result = match_cv_to_jobs(
-            cv_text,
-            client,
-            location,
-            job_level
-        )
-        
+        prompt = f"Cocokkan CV berikut dengan lowongan yang tersedia"
+        if location:
+            prompt += f" di {location}"
+        if job_level:
+            prompt += f" untuk level {job_level}"
+        prompt += f":\n\n{cv_text}"
+        reply = handle_chat(prompt, client)
+
         return {
-            "matched_jobs": result.get("matched_jobs", []),
-            "top_matches": result.get("top_matches", []),
-            "match_analysis": result.get("formatted_answer", ""),
-            "total_matches": len(result.get("matched_jobs", [])),
-            "success": result.get("success", False)
+            "matched_jobs": [],
+            "top_matches": [],
+            "match_analysis": reply,
+            "total_matches": 0,
+            "success": True
         }
     
     except Exception as e:
@@ -171,15 +202,14 @@ async def extract_cv_information(file: UploadFile = File(...)):
         except:
             cv_text = contents.decode('latin-1')
         
-        # Extract info
-        result = analyze_cv_with_service(cv_text, client)
-        
+        result = parse_cv_with_llm(cv_text, client)
+
         return {
-            "extracted_info": result.get("extracted_info", {}),
-            "professional_summary": result.get("professional_summary", ""),
-            "key_skills": result.get("keywords_found", []),
-            "experience_summary": result.get("experience_summary", ""),
-            "success": result.get("success", False)
+            "extracted_info": result,
+            "professional_summary": result.get("summary", ""),
+            "key_skills": result.get("skills", []),
+            "experience_summary": result.get("experience", ""),
+            "success": True
         }
     
     except Exception as e:
