@@ -78,6 +78,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Initialize session state variables
+if "user_id" not in st.session_state:
+    import uuid
+    st.session_state.user_id = str(uuid.uuid4())
+
 st.markdown("""
 <style>
     /* Modern & Clean Design - Light Blue Background */
@@ -232,7 +237,7 @@ api_client = APIClient("http://localhost:8000")
 # HEADER
 # ═══════════════════════════════════════════════════════
 
-# Ganti HEADER section:
+# HEADER section:
 st.markdown("""
 <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; background: white; border-bottom: 1px solid #e5e7eb;">
     <div style="display: flex; align-items: center; gap: 12px;">
@@ -245,8 +250,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Hilangkan header section yang lama
-# col_header1, col_header2 = st.columns([1.5, 1])
 
 # ═══════════════════════════════════════════════════════
 # MAIN NAVIGATION (TABS) - CENTERED
@@ -421,13 +424,13 @@ with tab2:
     
     st.markdown("---")
     
-    # Quick questions - styled seperti gambar
+    # Quick questions 
     st.markdown("**TRY ASKING**")
     col1, col2, col3, col4 = st.columns(4, gap="small")
     
     quick_q = [
         ("Backend jobs", "Show me backend developer jobs in Jakarta"),
-        ("Salary range", "What's the average salary for senior developers?"),
+        ("Salary range", "What's the average salary for Digital Marketing?"),
         ("Skill gap", "What skills should I learn next?"),
         ("Career tips", "Give me career development advice")
     ]
@@ -454,7 +457,7 @@ with tab2:
                             with st.spinner(messages_spinner[i]):
                                 time.sleep(0.8)
                         if i == len(messages_spinner) - 1:
-                            resp = api_client.send_message(user_id, q)
+                            resp = api_client.send_message(st.session_state.user_id, q)
                     
                     if resp and "error" not in resp:
                         response_text = resp.get("response", "Error")
@@ -471,7 +474,7 @@ with tab2:
     
     st.markdown("---")
     
-    # Input box - styling seperti gambar
+    # Input box
     col1, col2 = st.columns([5, 1])
     with col1:
         prompt = st.text_input("e.g., backend jobs or salary info", placeholder="Ask me anything...", label_visibility="collapsed", key="chat_input")
@@ -496,7 +499,7 @@ with tab2:
                             with st.spinner(messages_spinner[i]):
                                 time.sleep(0.8)
                         if i == len(messages_spinner) - 1:
-                            resp = api_client.send_message(user_id, prompt)
+                            resp = api_client.send_message(st.session_state.user_id, prompt)
                     
                     if resp and "error" not in resp:
                         response_text = resp.get("response", "Error")
@@ -664,18 +667,18 @@ with tab4:
                         <div class="card">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div>
-                                    <div style="font-size: 18px; font-weight: 700; color: #0a2540;">
+                                    <div style="font-size: 18px; font-weight: 700; color: #ffff;">
                                         {job.get('job_title', 'Job Title')}
                                     </div>
-                                    <div style="color: #666; font-size: 14px;">
+                                    <div style="color: #ffff; font-size: 14px;">
                                         {job.get('company', 'Company')} • {job.get('location', 'Location')}
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #0066cc;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #ffff;">
                                         {match:.0f}%
                                     </div>
-                                    <div style="font-size: 12px; color: #666;">Match</div>
+                                    <div style="font-size: 12px; color: #ffff;">Match</div>
                                 </div>
                             </div>
                             <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
