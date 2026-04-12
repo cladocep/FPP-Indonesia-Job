@@ -92,6 +92,27 @@ Rules:
 
 # ── SQL helpers ──────────────────────────────────────────────────────────────
 
+def preprocess_query(query):
+    q = query.lower()
+
+    if any(k in q for k in ["salary", "gaji", "pay", "income"]):
+        if "average" in q:
+            return query
+
+        try:
+            job = extract_job_title(query)
+
+            if not job:
+                return query
+
+            return f"average salary for {job}"
+
+        except Exception:
+            return query
+
+    return query
+
+
 def clean_sql_response(sql: str) -> str:
     """Remove common LLM wrappers/formatting."""
     sql = sql.strip()
