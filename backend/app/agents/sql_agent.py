@@ -14,10 +14,52 @@ Handles questions like:
 - "Berapa persen lowongan yang mencantumkan gaji?"
 """
 
+import re
+
 from openai import OpenAI
 
 from backend.app.config import OPENAI_API_KEY, LLM_MODEL
 from backend.app.database.sqlite_db import execute_query, get_table_schema, get_sample_data
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def extract_job_title(query: str) -> str:
+    """
+    Extract a job title from a salary-related natural language query.
+
+    Handles patterns like:
+    - "berapa gaji data analyst?"               -> "data analyst"
+    - "rata-rata gaji untuk software engineer"  -> "software engineer"
+    - "salary for a python developer"           -> "python developer"
+    - "how much does a UX designer earn?"       -> "UX designer"
+    """
+    q = query.strip()
+
+    # Indonesian patterns
+    id_patterns = [
+        r"gaji\s+(?:untuk\s+|sebagai\s+|posisi\s+)?(.+?)(?:\?|$|di\s|dengan\s)",
+        r"penghasilan\s+(?:untuk\s+|sebagai\s+)?(.+?)(?:\?|$|di\s)",
+        r"upah\s+(?:untuk\s+|sebagai\s+)?(.+?)(?:\?|$|di\s)",
+    ]
+
+    # English patterns
+    en_patterns = [
+        r"salary\s+(?:for\s+(?:a\s+|an\s+)?|of\s+(?:a\s+|an\s+)?)(.+?)(?:\?|$|\s+in\s|\s+at\s)",
+        r"(?:how much (?:does|do) (?:a |an )?)(.+?)\s+(?:earn|make|get paid)",
+        r"(.+?)\s+salary(?:\?|$)",
+        r"average\s+(?:salary\s+)?(?:for\s+(?:a\s+|an\s+)?)(.+?)(?:\?|$)",
+        r"pay\s+(?:for\s+(?:a\s+|an\s+)?)(.+?)(?:\?|$)",
+    ]
+
+    for pattern in id_patterns + en_patterns:
+        match = re.search(pattern, q, re.IGNORECASE)
+        if match:
+            title = match.group(1).strip().rstrip("?.,")
+            if title:
+                return title
+
+    return ""
 
 
 # ── prompts ──────────────────────────────────────────────────────────────────
