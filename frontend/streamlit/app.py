@@ -6,7 +6,6 @@ import streamlit as st
 import requests
 from typing import Optional, List, Dict
 import json
-import time
 
 # ═══════════════════════════════════════════════════════
 # API CLIENT CLASS
@@ -36,6 +35,24 @@ class APIClient:
             return response.json()
         except Exception as e:
             return {"error": str(e)}
+
+    def send_message_stream(self, user_id: str, message: str):
+        """Stream chat response as Server-Sent Events. Yields parsed event dicts."""
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/stream",
+                json={"message": message},
+                stream=True,
+                timeout=60
+            )
+            for line in response.iter_lines(decode_unicode=True):
+                if line and line.startswith("data: "):
+                    try:
+                        yield json.loads(line[6:])
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            yield {"type": "error", "message": str(e)}
     
     def analyze_cv(self, file_content: bytes, filename: str) -> Dict:
         try:
@@ -238,14 +255,17 @@ api_client = APIClient("http://localhost:8000")
 # ═══════════════════════════════════════════════════════
 
 # HEADER section:
-st.markdown("""
+_backend_online = api_client.is_connected()
+_status_color = "#16a34a" if _backend_online else "#dc2626"
+_status_label = "Online" if _backend_online else "Offline"
+st.markdown(f"""
 <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; background: white; border-bottom: 1px solid #e5e7eb;">
     <div style="display: flex; align-items: center; gap: 12px;">
         <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect fill='%230066cc' width='40' height='40' rx='8'/%3E%3Ctext x='50%25' y='50%25' font-size='24' font-weight='700' fill='white' text-anchor='middle' dy='.3em'%3EFPP%3C/text%3E%3C/svg%3E" style="width: 32px; height: 32px;">
         <div style="font-size: 18px; font-weight: 700; color: #0066cc;">FPP Indonesia Job Search</div>
     </div>
     <div style="font-size: 12px; color: #999;">
-        Status: <span style="color: #dc2626;">● Offline</span>
+        Status: <span style="color: {_status_color};">● {_status_label}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -421,6 +441,55 @@ with tab2:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+
+        # Stream response for pending message
+        pending = st.session_state.get("pending_prompt")
+        if pending:
+            del st.session_state["pending_prompt"]
+            if api_client.is_connected():
+                response_placeholder = st.empty()
+                full_response = ""
+                source = "General"
+                intent = "chat"
+
+                for event in api_client.send_message_stream(st.session_state.user_id, pending):
+                    if event.get("type") == "meta":
+                        source = event.get("source", "General")
+                        intent = event.get("intent", "chat")
+                    elif event.get("type") == "token":
+                        full_response += event.get("content", "")
+                        response_placeholder.markdown(f"""
+                        <div style="display: flex; justify-content: flex-start; margin: 12px 0; gap: 12px;">
+                            <div style="background: #e8eef7; border: 1px solid #d0dae8; padding: 16px; border-radius: 12px; max-width: 85%; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="color: #0a2540; font-weight: 500; font-size: 14px; margin-bottom: 8px;">Career Assistant</div>
+                                <div style="color: #333; line-height: 1.5; font-size: 14px;">{full_response}&#9611;</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Final display with footer
+                response_placeholder.markdown(f"""
+                <div style="display: flex; justify-content: flex-start; margin: 12px 0; gap: 12px;">
+                    <div style="background: #e8eef7; border: 1px solid #d0dae8; padding: 16px; border-radius: 12px; max-width: 85%; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="color: #0a2540; font-weight: 500; font-size: 14px; margin-bottom: 8px;">Career Assistant</div>
+                        <div style="color: #333; line-height: 1.5; font-size: 14px;">{full_response}</div>
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0dae8; display: flex; gap: 16px; font-size: 12px; color: #666;">
+                            <span><b>Source:</b> {source}</span>
+                            <span><b>Intent:</b> {intent}</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": full_response,
+                    "source": source,
+                    "intent": intent,
+                })
+                st.rerun()
+            else:
+                st.error("Backend offline — cannot get response.")
     
     st.markdown("---")
     
@@ -440,37 +509,8 @@ with tab2:
         with cols[i]:
             if st.button(label, key=f"q_{i}", use_container_width=True):
                 st.session_state.messages.append({"role": "user", "content": q})
-                if api_client.is_connected():
-                    messages_spinner = [
-                        "Searching database...",
-                        "Analyzing query...",
-                        "Finding matches...",
-                        "Processing results...",
-                        "Almost done..."
-                    ]
-                    
-                    placeholder = st.empty()
-                    resp = None
-                    
-                    for i in range(len(messages_spinner)):
-                        with placeholder.container():
-                            with st.spinner(messages_spinner[i]):
-                                time.sleep(0.8)
-                        if i == len(messages_spinner) - 1:
-                            resp = api_client.send_message(st.session_state.user_id, q)
-                    
-                    if resp and "error" not in resp:
-                        response_text = resp.get("response", "Error")
-                        source = resp.get("source", "General")
-                        intent = resp.get("intent", "Unknown")
-                        
-                        st.session_state.messages.append({
-                            "role": "assistant", 
-                            "content": response_text,
-                            "source": source,
-                            "intent": intent
-                        })
-                        st.rerun()
+                st.session_state["pending_prompt"] = q
+                st.rerun()
     
     st.markdown("---")
     
@@ -482,37 +522,8 @@ with tab2:
         if st.button("Send", key="send", use_container_width=True):
             if prompt:
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                if api_client.is_connected():
-                    messages_spinner = [
-                        "Searching database...",
-                        "Analyzing query...",
-                        "Finding matches...",
-                        "Processing results...",
-                        "Almost done..."
-                    ]
-                    
-                    placeholder = st.empty()
-                    resp = None
-                    
-                    for i in range(len(messages_spinner)):
-                        with placeholder.container():
-                            with st.spinner(messages_spinner[i]):
-                                time.sleep(0.8)
-                        if i == len(messages_spinner) - 1:
-                            resp = api_client.send_message(st.session_state.user_id, prompt)
-                    
-                    if resp and "error" not in resp:
-                        response_text = resp.get("response", "Error")
-                        source = resp.get("source", "General")
-                        intent = resp.get("intent", "Unknown")
-                        
-                        st.session_state.messages.append({
-                            "role": "assistant", 
-                            "content": response_text,
-                            "source": source,
-                            "intent": intent
-                        })
-                        st.rerun()
+                st.session_state["pending_prompt"] = prompt
+                st.rerun()
 
 # ═══════════════════════════════════════════════════════
 # TAB 3: CV ANALYSIS
