@@ -858,7 +858,7 @@ elif _active == 4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 20px 0; color: #666; font-size: 13px;">
-    <p>FPP Indonesia Job Search • <a href="http://localhost:8000/docs" style="color: #0066cc; text-decoration: none;">API Docs</a> • v1.0</p>
+    <p>© 2026 FPP Indonesia Job Search. Connecting Talent with Opportunity</p>
     <p>Made with care for Indonesia Job Seekers</p>
 </div>
 """, unsafe_allow_html=True)
