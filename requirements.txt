@@ -3,6 +3,7 @@ python-dotenv
 openai
 fastapi
 uvicorn
+python-multipart
 
 # Vector DB
 qdrant-client
