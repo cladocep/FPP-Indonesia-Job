@@ -5,12 +5,20 @@ FastAPI entry point for the Multi-Agent System.
 Provides REST API endpoints for the frontend to connect to.
 """
 
+import json as json_lib
+
 from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import StreamingResponse
+from openai import OpenAI
 from pydantic import BaseModel
 from typing import Optional
 
-from backend.app.config import validate_config, APP_PORT
-from backend.app.agents.main_agent import run_agent
+from backend.app.config import validate_config, APP_PORT, OPENAI_API_KEY, LLM_MODEL
+from backend.app.agents.main_agent import run_agent, classify_intent
+from backend.app.agents.rag_agent import build_context, format_sources_footer, RAG_SYSTEM_PROMPT
+from backend.app.agents.sql_agent import generate_sql, RESULT_FORMATTER_PROMPT
+from backend.app.database.qdrant_client import search_qdrant
+from backend.app.database.sqlite_db import execute_query
 from backend.app.api import routes_chat, routes_cv, routes_recommendation, routes_consultation
 
 # ── FastAPI app ──────────────────────────────────────────────────────────────
@@ -63,6 +71,115 @@ def chat(request: ChatRequest):
         cv_data=request.cv_data,
     )
     return ChatResponse(**result)
+
+
+@app.post("/chat/stream")
+def chat_stream(request: ChatRequest):
+    """
+    Streaming chat endpoint using Server-Sent Events.
+    Classifies intent, fetches context (blocking), then streams the LLM response token by token.
+    """
+    def generate():
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        try:
+            intent = classify_intent(request.message, openai_client)
+            messages = []
+            suffix = ""
+            source = "Chat"
+
+            if intent == "rag":
+                source = "RAG Agent"
+                search_results = search_qdrant(request.message, openai_client=openai_client)
+                if not search_results:
+                    yield f"data: {json_lib.dumps({'type': 'meta', 'intent': intent, 'source': source})}\n\n"
+                    yield f"data: {json_lib.dumps({'type': 'token', 'content': 'Maaf, aku tidak menemukan lowongan yang relevan. Coba gunakan kata kunci yang berbeda ya!'})}\n\n"
+                    yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
+                    return
+                context, sources = build_context(search_results)
+                suffix = format_sources_footer(sources)
+                system_prompt = RAG_SYSTEM_PROMPT.format(context=context)
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": request.message},
+                ]
+
+            elif intent == "sql":
+                source = "SQL Agent"
+                try:
+                    sql = generate_sql(request.message, openai_client)
+                    results = execute_query(sql)
+                except Exception:
+                    results = []
+                results_text = str(results[:50]) if results else "Query returned no results."
+                system_prompt = RESULT_FORMATTER_PROMPT.format(
+                    question=request.message,
+                    results=results_text,
+                )
+                messages = [{"role": "system", "content": system_prompt}]
+
+            elif intent == "hybrid":
+                source = "Hybrid (RAG + SQL)"
+                search_results = search_qdrant(request.message, openai_client=openai_client)
+                rag_context = ""
+                if search_results:
+                    rag_context, _ = build_context(search_results)
+                try:
+                    sql = generate_sql(request.message, openai_client)
+                    sql_results = execute_query(sql)
+                    sql_context = str(sql_results[:20])
+                except Exception:
+                    sql_context = "No SQL data available."
+                combine_prompt = (
+                    f"You are a helpful assistant. Combine these two sources into one clear answer.\n"
+                    f"User asked: \"{request.message}\"\n\n"
+                    f"Job descriptions (semantic search):\n{rag_context[:1500]}\n\n"
+                    f"Database statistics (SQL):\n{sql_context}\n\n"
+                    "Rules: Merge naturally. Include both descriptive AND quantitative data. "
+                    "Respond in Bahasa Indonesia."
+                )
+                messages = [{"role": "system", "content": combine_prompt}]
+
+            else:  # chat, cv, unknown
+                source = "Chat"
+                messages = [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a friendly AI assistant for an Indonesian Job Search platform. "
+                            "Always respond in Bahasa Indonesia. "
+                            "Be helpful and guide users to ask about jobs, salary/statistics, or upload their CV."
+                        ),
+                    },
+                    {"role": "user", "content": request.message},
+                ]
+
+            yield f"data: {json_lib.dumps({'type': 'meta', 'intent': intent, 'source': source})}\n\n"
+
+            stream = openai_client.chat.completions.create(
+                model=LLM_MODEL,
+                messages=messages,
+                stream=True,
+                temperature=0.3,
+                max_tokens=1000,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    yield f"data: {json_lib.dumps({'type': 'token', 'content': delta.content})}\n\n"
+
+            if suffix:
+                yield f"data: {json_lib.dumps({'type': 'token', 'content': suffix})}\n\n"
+
+            yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json_lib.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── startup ──────────────────────────────────────────────────────────────────
