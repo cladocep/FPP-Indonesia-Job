@@ -168,12 +168,12 @@ st.markdown("""
         font-weight: 600;
         transition: all 0.2s ease;
     }
-    
+
     .stButton > button:hover {
         background-color: #0052a3;
         box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
     }
-    
+
     /* Metrics */
     .metric-box {
         background: white;
@@ -272,50 +272,86 @@ st.markdown(f"""
 
 
 # ═══════════════════════════════════════════════════════
-# MAIN NAVIGATION (TABS) - CENTERED
+# MAIN NAVIGATION
 # ═══════════════════════════════════════════════════════
 
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = 0
 
-if st.session_state.active_tab == 0:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"])
-elif st.session_state.active_tab == 1:
-    tab2, tab1, tab3, tab4, tab5 = st.tabs(["Chat AI", "Home", "CV Analysis", "Job Match", "Career Path"])
-elif st.session_state.active_tab == 2:
-    tab3, tab1, tab2, tab4, tab5 = st.tabs(["CV Analysis", "Home", "Chat AI", "Job Match", "Career Path"])
-elif st.session_state.active_tab == 3:
-    tab4, tab1, tab2, tab3, tab5 = st.tabs(["Job Match", "Home", "Chat AI", "CV Analysis", "Career Path"])
-elif st.session_state.active_tab == 4:
-    tab5, tab1, tab2, tab3, tab4 = st.tabs(["Career Path", "Home", "Chat AI", "CV Analysis", "Job Match"])
+# Sync active tab from query params (set by nav links)
+if "tab" in st.query_params:
+    try:
+        _tab_from_url = int(st.query_params["tab"])
+        if 0 <= _tab_from_url <= 4:
+            st.session_state.active_tab = _tab_from_url
+    except Exception:
+        pass
+
+_tab_labels = ["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"]
+_active_idx = st.session_state.active_tab
+
+# Build nav as plain HTML links — clicking updates ?tab=N and Streamlit reruns
+_nav_items_html = ""
+for _i, _label in enumerate(_tab_labels):
+    if _i == _active_idx:
+        _nav_items_html += (
+            f'<a href="?tab={_i}" target="_self" style="display:flex; flex-direction:column; align-items:center;'
+            f' padding:0 28px; text-decoration:none;">'
+            f'<span style="color:#0066cc; font-weight:600; font-size:15px; white-space:nowrap;'
+            f' padding-bottom:10px;">{_label}</span>'
+            f'<div style="height:3px; width:100%; background:#e05c5c; border-radius:2px;"></div>'
+            f'</a>'
+        )
+    else:
+        _nav_items_html += (
+            f'<a href="?tab={_i}" target="_self" style="display:flex; flex-direction:column; align-items:center;'
+            f' padding:0 28px 13px 28px; text-decoration:none;">'
+            f'<span style="color:#888; font-weight:400; font-size:15px; white-space:nowrap;">{_label}</span>'
+            f'</a>'
+        )
+
+st.markdown(
+    f'<div style="background:white; border-bottom:1px solid #e5e7eb; display:flex;'
+    f' justify-content:center; align-items:flex-end; padding:0; margin-bottom:24px;">'
+    f'{_nav_items_html}</div>',
+    unsafe_allow_html=True
+)
+
+_active = st.session_state.active_tab
 
 # ═══════════════════════════════════════════════════════
 # TAB 1: HOME
 # ═══════════════════════════════════════════════════════
 
-with tab1:
+if _active == 0:
     col1, col2 = st.columns([2, 1], gap="large")
     
     with col1:
         st.markdown("""
-        <div style="padding: 20px 0;">
+        <div style="padding: 20px 0 8px 0;">
             <h1 style="margin: 0 0 12px 0; font-size: 48px; font-weight: 700; color: #0a2540; line-height: 1.2;">
                 Smarter Job Search, Better Results
             </h1>
-            <p style="margin: 0 0 24px 0; font-size: 18px; color: #666; line-height: 1.6;">
+            <p style="margin: 0 0 16px 0; font-size: 18px; color: #666; line-height: 1.6;">
                 Leverage AI to discover the right opportunities and accelerate your career
             </p>
-            <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                <a href="#" style="display: inline-block; background: #c8ff00; color: #0052a3; padding: 12px 28px; border-radius: 24px; font-weight: 700; text-decoration: none; transition: all 0.2s ease; font-size: 14px;">
-                    Try It Now
-                </a>
-                <a href="#" style="display: inline-block; background: white; color: #0066cc; padding: 12px 28px; border-radius: 24px; font-weight: 700; text-decoration: none; border: 2px solid #0066cc; transition: all 0.2s ease; font-size: 14px;">
-                    See How It Works
-                </a>
-            </div>
-            <div style="background: white; border: 1px solid #e5e7eb; padding: 16px 20px; border-radius: 8px; display: inline-block; font-size: 13px; color: #666;">
-                <span style="font-weight: 600; color: #0a2540;">TRUSTED BY 5,000+ JOB SEEKERS</span> • 94% Success Rate
-            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(
+            '<div style="display:flex; gap:12px; margin-top:8px;">'
+            '<a href="?tab=1" target="_self" style="display:inline-block; background:#c8ff00; color:#0052a3;'
+            ' padding:12px 28px; border-radius:24px; font-weight:700; text-decoration:none; font-size:14px;">Try It Now</a>'
+            '<a href="?tab=2" target="_self" style="display:inline-block; background:white; color:#0066cc;'
+            ' padding:12px 28px; border-radius:24px; font-weight:700; text-decoration:none;'
+            ' border:2px solid #0066cc; font-size:14px;">See How It Works</a>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+        st.markdown("""
+        <div style="margin-top: 16px; background: white; border: 1px solid #e5e7eb; padding: 16px 20px; border-radius: 8px; display: inline-block; font-size: 13px; color: #666;">
+            <span style="font-weight: 600; color: #0a2540;">TRUSTED BY 5,000+ JOB SEEKERS</span> • 94% Success Rate
         </div>
         """, unsafe_allow_html=True)
     
@@ -396,7 +432,7 @@ with tab1:
 # TAB 2: CHAT
 # ═══════════════════════════════════════════════════════
 
-with tab2:
+elif _active == 1:
     st.markdown("## Chat with AI Assistant")
     st.markdown("Ask me anything about your career")
     
@@ -529,7 +565,7 @@ with tab2:
 # TAB 3: CV ANALYSIS
 # ═══════════════════════════════════════════════════════
 
-with tab3:
+elif _active == 2:
     st.markdown("## Upload & Analyze Your CV")
     st.markdown("Get instant feedback on your resume quality and recommendations for improvement")
     
@@ -594,7 +630,7 @@ with tab3:
 # TAB 4: JOB MATCH
 # ═══════════════════════════════════════════════════════
 
-with tab4:
+elif _active == 3:
     st.markdown("## Find Matching Jobs")
     st.markdown("Discover opportunities that match your skills and preferences")
     
@@ -704,7 +740,7 @@ with tab4:
 # TAB 5: CAREER PATH
 # ═══════════════════════════════════════════════════════
 
-with tab5:
+elif _active == 4:
     st.markdown("## Career Development Plan")
     st.markdown("Get personalized career guidance and growth recommendations")
     
