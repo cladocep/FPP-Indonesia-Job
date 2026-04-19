@@ -4,6 +4,8 @@ openai
 fastapi
 uvicorn
 python-multipart
+requests
+streamlit
 
 # Vector DB
 qdrant-client
