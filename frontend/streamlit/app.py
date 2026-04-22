@@ -106,10 +106,40 @@ st.markdown("""
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, #e6f2ff 0%, #f0f8ff 100%);
     }
-    
+
     .main {
         background: linear-gradient(135deg, #e6f2ff 0%, #f0f8ff 100%);
         padding: 0;
+    }
+
+    /* TRY ASKING container - white background */
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: white !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 12px !important;
+    }
+
+    /* Chat input - white background + outline */
+    [data-testid="stTextInput"] input {
+        background-color: white !important;
+        border: 1.5px solid #d1d5db !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stTextInput"] input:focus {
+        border-color: #0066cc !important;
+        box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15) !important;
+    }
+
+    /* Send button - solid blue */
+    [data-testid="stFormSubmitButton"] button {
+        background-color: #0066cc !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stFormSubmitButton"] button:hover {
+        background-color: #0052a3 !important;
     }
     
     /* Header - Full Blue */
@@ -356,6 +386,7 @@ if _active == 0:
         """, unsafe_allow_html=True)
     
     with col2:
+        st.markdown("<div style='margin-top: 80px;'>", unsafe_allow_html=True)
         st.markdown("### Quick Stats")
         col_stat1, col_stat2 = st.columns(2)
         with col_stat1:
@@ -366,7 +397,8 @@ if _active == 0:
             st.metric("Avg. Match Time", "2 min")
         with col_stat2:
             st.metric("Users Active", "5,000+")
-    
+        st.markdown("</div>", unsafe_allow_html=True)
+
     st.markdown("---")
     
     st.markdown("### One Stop for Your Career Journey")
@@ -446,117 +478,77 @@ elif _active == 1:
             st.rerun()
     
     st.markdown("---")
-    
-    # Chat display - dengan box styling
-    chat_container = st.container()
-    with chat_container:
-        for message in st.session_state.messages:
-            if message["role"] == "user":
-                st.markdown(f"""
-                <div style="display: flex; justify-content: flex-end; margin: 12px 0;">
-                    <div style="background: #0066cc; color: white; padding: 12px 16px; border-radius: 16px; max-width: 70%; word-wrap: break-word; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        {message['content']}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # AI response dengan box
-                st.markdown(f"""
-                <div style="display: flex; justify-content: flex-start; margin: 12px 0; gap: 12px;">
-                    <div style="background: #e8eef7; border: 1px solid #d0dae8; padding: 16px; border-radius: 12px; max-width: 85%; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="color: #0a2540; font-weight: 500; font-size: 14px; margin-bottom: 8px;">
-                            Career Assistant
-                        </div>
-                        <div style="color: #333; line-height: 1.5; font-size: 14px;">
-                            {message['content']}
-                        </div>
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0dae8; display: flex; gap: 16px; font-size: 12px; color: #666;">
-                            <span><b>Source:</b> {message.get('source', 'General')}</span>
-                            <span><b>Intent:</b> {message.get('intent', 'Unknown')}</span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
 
-        # Stream response for pending message
-        pending = st.session_state.get("pending_prompt")
-        if pending:
-            del st.session_state["pending_prompt"]
-            if api_client.is_connected():
-                response_placeholder = st.empty()
-                full_response = ""
-                source = "General"
-                intent = "chat"
+    # Chat display - native st.chat_message (no HTML injection risk)
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            with st.chat_message("user"):
+                st.write(message["content"])
+        else:
+            with st.chat_message("assistant", avatar="🤖"):
+                st.write(message["content"])
+                st.caption(f"Source: {message.get('source', 'General')}  •  Intent: {message.get('intent', 'Unknown')}")
 
+    # Handle pending message — streaming
+    pending = st.session_state.get("pending_prompt")
+    if pending:
+        del st.session_state["pending_prompt"]
+        if api_client.is_connected():
+            full_response = ""
+            source = "General"
+            intent = "chat"
+
+            with st.chat_message("assistant", avatar="🤖"):
+                placeholder = st.empty()
                 for event in api_client.send_message_stream(st.session_state.user_id, pending):
                     if event.get("type") == "meta":
                         source = event.get("source", "General")
                         intent = event.get("intent", "chat")
                     elif event.get("type") == "token":
                         full_response += event.get("content", "")
-                        response_placeholder.markdown(f"""
-                        <div style="display: flex; justify-content: flex-start; margin: 12px 0; gap: 12px;">
-                            <div style="background: #e8eef7; border: 1px solid #d0dae8; padding: 16px; border-radius: 12px; max-width: 85%; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                                <div style="color: #0a2540; font-weight: 500; font-size: 14px; margin-bottom: 8px;">Career Assistant</div>
-                                <div style="color: #333; line-height: 1.5; font-size: 14px;">{full_response}&#9611;</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        placeholder.write(full_response + "▌")
+                    elif event.get("type") == "done":
+                        placeholder.write(full_response)
+                    elif event.get("type") == "error":
+                        placeholder.error(f"Error: {event.get('message', 'Unknown error')}")
+                st.caption(f"Source: {source}  •  Intent: {intent}")
 
-                # Final display with footer
-                response_placeholder.markdown(f"""
-                <div style="display: flex; justify-content: flex-start; margin: 12px 0; gap: 12px;">
-                    <div style="background: #e8eef7; border: 1px solid #d0dae8; padding: 16px; border-radius: 12px; max-width: 85%; word-wrap: break-word; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="color: #0a2540; font-weight: 500; font-size: 14px; margin-bottom: 8px;">Career Assistant</div>
-                        <div style="color: #333; line-height: 1.5; font-size: 14px;">{full_response}</div>
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #d0dae8; display: flex; gap: 16px; font-size: 12px; color: #666;">
-                            <span><b>Source:</b> {source}</span>
-                            <span><b>Intent:</b> {intent}</span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response,
+                "source": source,
+                "intent": intent,
+            })
+            st.rerun()
+        else:
+            st.error("Backend offline — cannot get response.")
+    
+    # ── Input bar container (TRY ASKING + buttons + input) ───────────────────
+    with st.container(border=True):
+        st.markdown('<p style="font-size:11px; font-weight:600; color:#999; letter-spacing:1px; margin:0 0 4px 0;">TRY ASKING</p>', unsafe_allow_html=True)
 
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": full_response,
-                    "source": source,
-                    "intent": intent,
-                })
-                st.rerun()
-            else:
-                st.error("Backend offline — cannot get response.")
-    
-    st.markdown("---")
-    
-    # Quick questions 
-    st.markdown("**TRY ASKING**")
-    col1, col2, col3, col4 = st.columns(4, gap="small")
-    
-    quick_q = [
-        ("Backend jobs", "Show me backend developer jobs in Jakarta"),
-        ("Salary range", "What's the average salary for Digital Marketing?"),
-        ("Skill gap", "What skills should I learn next?"),
-        ("Career tips", "Give me career development advice")
-    ]
-    
-    cols = [col1, col2, col3, col4]
-    for i, (label, q) in enumerate(quick_q):
-        with cols[i]:
-            if st.button(label, key=f"q_{i}", use_container_width=True):
-                st.session_state.messages.append({"role": "user", "content": q})
-                st.session_state["pending_prompt"] = q
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Input box
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        prompt = st.text_input("e.g., backend jobs or salary info", placeholder="Ask me anything...", label_visibility="collapsed", key="chat_input")
-    with col2:
-        if st.button("Send", key="send", use_container_width=True):
-            if prompt:
+        quick_q = [
+            ("Backend jobs", "Show me backend developer jobs in Jakarta"),
+            ("Salary range", "What's the average salary for Digital Marketing?"),
+            ("Skill gap", "What skills should I learn next?"),
+            ("Career tips", "Give me career development advice")
+        ]
+
+        q_cols = st.columns(4, gap="small")
+        for i, (label, q) in enumerate(quick_q):
+            with q_cols[i]:
+                if st.button(label, key=f"q_{i}", use_container_width=True):
+                    st.session_state.messages.append({"role": "user", "content": q})
+                    st.session_state["pending_prompt"] = q
+                    st.rerun()
+
+        with st.form(key="chat_form", clear_on_submit=True):
+            input_col, send_col = st.columns([5, 1])
+            with input_col:
+                prompt = st.text_input("e.g., backend jobs or salary info", placeholder="Ask me anything...", label_visibility="collapsed", key="chat_input")
+            with send_col:
+                submitted = st.form_submit_button("Send", use_container_width=True)
+            if submitted and prompt:
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 st.session_state["pending_prompt"] = prompt
                 st.rerun()
@@ -633,67 +625,101 @@ elif _active == 2:
 elif _active == 3:
     st.markdown("## Find Matching Jobs")
     st.markdown("Discover opportunities that match your skills and preferences")
-    
+
     st.markdown("---")
-    
+
+    # Session state untuk custom entries
+    if "custom_skills" not in st.session_state:
+        st.session_state.custom_skills = []
+    if "custom_locations" not in st.session_state:
+        st.session_state.custom_locations = []
+    if "custom_roles" not in st.session_state:
+        st.session_state.custom_roles = []
+
+    _skills_preset = [
+        "Python", "JavaScript", "TypeScript", "Go", "Java", "Kotlin",
+        "C++", "C#", "PHP", "Ruby", "Rust", "Swift",
+        "React", "Vue.js", "Angular", "Next.js", "FastAPI", "Django",
+        "Flask", "Spring Boot", "Node.js", "Express.js", "Laravel",
+        "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis",
+        "TensorFlow", "PyTorch", "Scikit-learn", "Pandas", "NumPy",
+        "Power BI", "Tableau", "Spark", "Hadoop",
+        "Docker", "Kubernetes", "AWS", "Google Cloud", "Azure",
+        "CI/CD", "Terraform", "Linux", "Git",
+        "Leadership", "Communication", "Project Management", "Agile", "Scrum",
+    ]
+    _locations_preset = [
+        "Jakarta", "Surabaya", "Bandung", "Medan", "Semarang",
+        "Yogyakarta", "Bali", "Makassar", "Palembang", "Tangerang",
+        "Bekasi", "Depok", "Bogor", "Malang", "Batam",
+        "Remote", "Hybrid",
+    ]
+    _roles_preset = [
+        "Backend Dev", "Frontend Dev", "Full Stack", "Mobile Dev (Android)",
+        "Mobile Dev (iOS)", "Data Scientist", "Data Analyst", "Data Engineer",
+        "ML Engineer", "DevOps Engineer", "Cloud Engineer", "Site Reliability Engineer",
+        "QA Engineer", "Security Engineer", "Product Manager", "UI/UX Designer",
+        "System Analyst", "Database Administrator", "IT Consultant",
+    ]
+
     col1, col2, col3 = st.columns(3, gap="large")
-    
+
     with col1:
         st.markdown("**Your Skills:**")
+        _all_skills = _skills_preset + [s for s in st.session_state.custom_skills if s not in _skills_preset]
         skills = st.multiselect(
             "Select skills",
-            [
-                # Programming languages
-                "Python", "JavaScript", "TypeScript", "Go", "Java", "Kotlin",
-                "C++", "C#", "PHP", "Ruby", "Rust", "Swift",
-                # Web & frameworks
-                "React", "Vue.js", "Angular", "Next.js", "FastAPI", "Django",
-                "Flask", "Spring Boot", "Node.js", "Express.js", "Laravel",
-                # Data & ML
-                "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis",
-                "TensorFlow", "PyTorch", "Scikit-learn", "Pandas", "NumPy",
-                "Power BI", "Tableau", "Spark", "Hadoop",
-                # DevOps & Cloud
-                "Docker", "Kubernetes", "AWS", "Google Cloud", "Azure",
-                "CI/CD", "Terraform", "Linux", "Git",
-                # Soft skills
-                "Leadership", "Communication", "Project Management", "Agile", "Scrum",
-            ],
+            _all_skills,
             default=["Python"],
             label_visibility="collapsed",
             key="skills_jobmatch"
         )
+        _add_skill_col, _btn_skill_col = st.columns([3, 1])
+        with _add_skill_col:
+            _new_skill = st.text_input("Add custom skill", placeholder="e.g. Dance", label_visibility="collapsed", key="new_skill_input")
+        with _btn_skill_col:
+            if st.button("+ Add", key="add_skill_btn", use_container_width=True):
+                if _new_skill and _new_skill.strip() not in _all_skills:
+                    st.session_state.custom_skills.append(_new_skill.strip())
+                    st.rerun()
 
     with col2:
         st.markdown("**Location:**")
+        _all_locations = _locations_preset + [l for l in st.session_state.custom_locations if l not in _locations_preset]
         locations = st.multiselect(
             "Select cities",
-            [
-                "Jakarta", "Surabaya", "Bandung", "Medan", "Semarang",
-                "Yogyakarta", "Bali", "Makassar", "Palembang", "Tangerang",
-                "Bekasi", "Depok", "Bogor", "Malang", "Batam",
-                "Remote", "Hybrid",
-            ],
+            _all_locations,
             default=["Jakarta"],
             label_visibility="collapsed",
             key="locations_jobmatch"
         )
+        _add_loc_col, _btn_loc_col = st.columns([3, 1])
+        with _add_loc_col:
+            _new_location = st.text_input("Add custom location", placeholder="e.g. Cirebon", label_visibility="collapsed", key="new_location_input")
+        with _btn_loc_col:
+            if st.button("+ Add", key="add_location_btn", use_container_width=True):
+                if _new_location and _new_location.strip() not in _all_locations:
+                    st.session_state.custom_locations.append(_new_location.strip())
+                    st.rerun()
 
     with col3:
         st.markdown("**Target Role:**")
+        _all_roles = _roles_preset + [r for r in st.session_state.custom_roles if r not in _roles_preset]
         roles = st.multiselect(
             "Select job types",
-            [
-                "Backend Dev", "Frontend Dev", "Full Stack", "Mobile Dev (Android)",
-                "Mobile Dev (iOS)", "Data Scientist", "Data Analyst", "Data Engineer",
-                "ML Engineer", "DevOps Engineer", "Cloud Engineer", "Site Reliability Engineer",
-                "QA Engineer", "Security Engineer", "Product Manager", "UI/UX Designer",
-                "System Analyst", "Database Administrator", "IT Consultant",
-            ],
+            _all_roles,
             default=["Backend Dev"],
             label_visibility="collapsed",
             key="roles_jobmatch"
         )
+        _add_role_col, _btn_role_col = st.columns([3, 1])
+        with _add_role_col:
+            _new_role = st.text_input("Add custom role", placeholder="e.g. Dance Instructor", label_visibility="collapsed", key="new_role_input")
+        with _btn_role_col:
+            if st.button("+ Add", key="add_role_btn", use_container_width=True):
+                if _new_role and _new_role.strip() not in _all_roles:
+                    st.session_state.custom_roles.append(_new_role.strip())
+                    st.rerun()
     
     if st.button("Search Jobs", use_container_width=True, key="search_jobs"):
         if skills and locations and roles:
