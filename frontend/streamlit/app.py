@@ -575,7 +575,7 @@ elif _active == 2:
                 if "error" not in result:
                     score = result.get("overall_score", 75)
                     
-                    st.success("Analysis complete - Score: 75%")
+                    st.success(f"Analysis complete - Score: {score}%")
                     
                     col_a, col_b, col_c, col_d = st.columns(4)
                     with col_a:
