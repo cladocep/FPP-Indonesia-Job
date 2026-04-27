@@ -48,6 +48,78 @@ class ChatResponse(BaseModel):
     source: str
 
 
+# ═══════════════════════════════════════════════════════
+# CV ANALYSIS ENDPOINT
+# ═══════════════════════════════════════════════════════
+
+@app.post("/api/cv/analyze")
+async def analyze_cv(file: UploadFile = File(...)):
+    """Analyze CV and return feedback"""
+    try:
+        content = await file.read()
+        # Process CV analysis here
+        return {
+            "overall_score": 78,
+            "strengths": ["Clear structure", "Good experience"],
+            "weaknesses": ["Missing keywords", "Poor formatting"],
+            "recommendations": ["Add more metrics", "Use action verbs"]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════
+# JOB RECOMMENDATIONS ENDPOINT
+# ═══════════════════════════════════════════════════════
+
+class RecommendationRequest(BaseModel):
+    current_skills: list[str]
+    desired_roles: list[str]
+    location: str
+
+@app.post("/api/recommendations/personalized")
+async def get_recommendations(req: RecommendationRequest):
+    """Get personalized job recommendations"""
+    try:
+        # Query jobs from database based on skills & location
+        return {
+            "recommendations": [
+                {
+                    "job_title": "Backend Developer",
+                    "company": "Tech Corp",
+                    "location": req.location,
+                    "skill_match_percentage": 85
+                }
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════
+# CAREER ADVICE ENDPOINT
+# ═══════════════════════════════════════════════════════
+
+class CareerAdviceRequest(BaseModel):
+    current_role: str
+    target_role: str
+    current_skills: list[str]
+    years_experience: int
+
+@app.post("/api/consultation/career-advice")
+async def get_career_advice(req: CareerAdviceRequest):
+    """Get personalized career advice"""
+    try:
+        return {
+            "career_advice": f"To grow from {req.current_role} to {req.target_role}, focus on...",
+            "timeline": "12-18 months",
+            "effort": "High",
+            "recommendations": ["Learn new framework", "Build portfolio", "Network"]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/")
