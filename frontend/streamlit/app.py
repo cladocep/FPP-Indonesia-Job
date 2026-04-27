@@ -6,6 +6,7 @@ import streamlit as st
 import requests
 from typing import Optional, List, Dict
 import json
+import os
 
 # ═══════════════════════════════════════════════════════
 # API CLIENT CLASS
@@ -14,15 +15,24 @@ import json
 class APIClient:
     """API Client untuk koneksi ke backend FastAPI"""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = None):
+        # Get from environment variable jika ada
+        if base_url is None:
+            base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+        
         self.base_url = base_url
-        self.timeout = 10
+        self.timeout = 60  # ADD THIS LINE
+        print(f"[DEBUG] APIClient initialized with base_url: {self.base_url}", flush=True)
     
-    def is_connected(self) -> bool:
+    def is_connected(self):
+        """Check koneksi ke backend"""
         try:
-            response = requests.get(f"{self.base_url}/health", timeout=2)
-            return response.status_code == 200
-        except:
+            response = requests.get(f"{self.base_url}/health", timeout=5)
+            is_ok = response.status_code == 200
+            print(f"[DEBUG] Backend health check: {response.status_code}", flush=True)
+            return is_ok
+        except Exception as e:
+            print(f"[DEBUG] Backend connection error: {str(e)}", flush=True)
             return False
     
     def send_message(self, user_id: str, message: str, session_id: Optional[str] = None) -> Dict:
@@ -57,7 +67,11 @@ class APIClient:
     def analyze_cv(self, file_content: bytes, filename: str) -> Dict:
         try:
             files = {"file": (filename, file_content)}
-            response = requests.post(f"{self.base_url}/api/cv/analyze", files=files, timeout=self.timeout)
+            response = requests.post(
+                f"{self.base_url}/api/cv/analyze", 
+                files=files, 
+                timeout=self.timeout
+            )
             return response.json()
         except Exception as e:
             return {"error": str(e)}
@@ -278,7 +292,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-api_client = APIClient("http://localhost:8000")
+# Initialize APIClient dengan environment variable atau default
+api_client = APIClient()
 
 # ═══════════════════════════════════════════════════════
 # HEADER
@@ -302,58 +317,15 @@ st.markdown(f"""
 
 
 # ═══════════════════════════════════════════════════════
-# MAIN NAVIGATION
+# MAIN NAVIGATION - Using st.tabs (native & reliable)
 # ═══════════════════════════════════════════════════════
-
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = 0
-
-# Sync active tab from query params (set by nav links)
-if "tab" in st.query_params:
-    try:
-        _tab_from_url = int(st.query_params["tab"])
-        if 0 <= _tab_from_url <= 4:
-            st.session_state.active_tab = _tab_from_url
-    except Exception:
-        pass
 
 _tab_labels = ["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"]
-_active_idx = st.session_state.active_tab
 
-# Build nav as plain HTML links — clicking updates ?tab=N and Streamlit reruns
-_nav_items_html = ""
-for _i, _label in enumerate(_tab_labels):
-    if _i == _active_idx:
-        _nav_items_html += (
-            f'<a href="?tab={_i}" target="_self" style="display:flex; flex-direction:column; align-items:center;'
-            f' padding:0 28px; text-decoration:none;">'
-            f'<span style="color:#0066cc; font-weight:600; font-size:15px; white-space:nowrap;'
-            f' padding-bottom:10px;">{_label}</span>'
-            f'<div style="height:3px; width:100%; background:#e05c5c; border-radius:2px;"></div>'
-            f'</a>'
-        )
-    else:
-        _nav_items_html += (
-            f'<a href="?tab={_i}" target="_self" style="display:flex; flex-direction:column; align-items:center;'
-            f' padding:0 28px 13px 28px; text-decoration:none;">'
-            f'<span style="color:#888; font-weight:400; font-size:15px; white-space:nowrap;">{_label}</span>'
-            f'</a>'
-        )
+tab_home, tab_chat, tab_cv, tab_jobs, tab_career = st.tabs(_tab_labels)
 
-st.markdown(
-    f'<div style="background:white; border-bottom:1px solid #e5e7eb; display:flex;'
-    f' justify-content:center; align-items:flex-end; padding:0; margin-bottom:24px;">'
-    f'{_nav_items_html}</div>',
-    unsafe_allow_html=True
-)
-
-_active = st.session_state.active_tab
-
-# ═══════════════════════════════════════════════════════
-# TAB 1: HOME
-# ═══════════════════════════════════════════════════════
-
-if _active == 0:
+with tab_home:
+    # HOME CONTENT
     col1, col2 = st.columns([2, 1], gap="large")
     
     with col1:
@@ -381,7 +353,7 @@ if _active == 0:
 
         st.markdown("""
         <div style="margin-top: 16px; background: white; border: 1px solid #e5e7eb; padding: 16px 20px; border-radius: 8px; display: inline-block; font-size: 13px; color: #666;">
-            <span style="font-weight: 600; color: #0a2540;">TRUSTED BY 5,000+ JOB SEEKERS</span> • 94% Success Rate
+            <span style="font-weight: 600; color: #0a2540;">TRUSTED BY 399+ Companies </span> • Waiting for You to Join Them!
         </div>
         """, unsafe_allow_html=True)
     
@@ -390,13 +362,13 @@ if _active == 0:
         st.markdown("### Quick Stats")
         col_stat1, col_stat2 = st.columns(2)
         with col_stat1:
-            st.metric("Jobs Available", "10,000+")
+            st.metric("Opportunities Available", "470+")
         with col_stat2:
             st.metric("Job Match Rate", "95%")
         with col_stat1:
             st.metric("Avg. Match Time", "2 min")
         with col_stat2:
-            st.metric("Users Active", "5,000+")
+            st.metric("Locations Across Indonesia", "80+")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -417,8 +389,8 @@ if _active == 0:
     with feat_col2:
         st.markdown("""
         <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-            <b style="color: #0a2540; display: block; font-size: 16px;">Job Tracker</b>
-            <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Track your applications and interview progress</p>
+            <b style="color: #0a2540; display: block; font-size: 16px;">Define Your Target Role</b>
+            <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Find jobs that align with your goals and skills</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -447,8 +419,8 @@ if _active == 0:
     with feat_col5:
         st.markdown("""
         <div style="background: white; border: 1px solid #e5e7eb; padding: 24px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease;">
-            <b style="color: #0a2540; display: block; font-size: 16px;">Resume Builder</b>
-            <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Create professional resumes with AI assistance</p>
+            <b style="color: #0a2540; display: block; font-size: 16px;">Smart Location Matching</b>
+            <p style="color: #666; font-size: 13px; margin-top: 8px; line-height: 1.5;">Find opportunities around your location</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -460,11 +432,8 @@ if _active == 0:
         </div>
         """, unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════
-# TAB 2: CHAT
-# ═══════════════════════════════════════════════════════
-
-elif _active == 1:
+with tab_chat:
+    # CHAT CONTENT (copy dari elif _active == 1)
     st.markdown("## Chat with AI Assistant")
     st.markdown("Ask me anything about your career")
     
@@ -553,11 +522,8 @@ elif _active == 1:
                 st.session_state["pending_prompt"] = prompt
                 st.rerun()
 
-# ═══════════════════════════════════════════════════════
-# TAB 3: CV ANALYSIS
-# ═══════════════════════════════════════════════════════
-
-elif _active == 2:
+with tab_cv:
+    # CV ANALYSIS CONTENT (copy dari elif _active == 2)
     st.markdown("## Upload & Analyze Your CV")
     st.markdown("Get instant feedback on your resume quality and recommendations for improvement")
     
@@ -575,11 +541,29 @@ elif _active == 2:
                 if "error" not in result:
                     score = result.get("overall_score", 75)
                     
-                    st.success(f"Analysis complete - Score: {score}%")
+                    # Determine color based on score
+                    if score >= 80:
+                        score_color = "#16a34a"  # Green
+                        score_label = "Excellent"
+                    elif score >= 60:
+                        score_color = "#eab308"  # Yellow
+                        score_label = "Good"
+                    else:
+                        score_color = "#dc2626"  # Red
+                        score_label = "Needs Improvement"
+                    
+                    st.success("Analysis Complete!")
                     
                     col_a, col_b, col_c, col_d = st.columns(4)
                     with col_a:
-                        st.metric("Overall", f"{score}%")
+                        st.markdown(f"""
+                        <div style="background: white; padding: 16px; border-radius: 8px; text-align: center; border: 2px solid {score_color};">
+                            <div style="font-size: 48px; font-weight: 700; color: {score_color};">{score:.0f}</div>
+                            <div style="font-size: 20px; color: {score_color}; margin-top: 4px;">%</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 8px;">Overall Score</div>
+                            <div style="font-size: 11px; color: {score_color}; font-weight: 600; margin-top: 4px;">{score_label}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
                     with col_b:
                         st.metric("Strengths", len(result.get("strengths", [])))
                     with col_c:
@@ -618,11 +602,8 @@ elif _active == 2:
         • **Stand Out** - Make better first impression
         """)
 
-# ═══════════════════════════════════════════════════════
-# TAB 4: JOB MATCH
-# ═══════════════════════════════════════════════════════
-
-elif _active == 3:
+with tab_jobs:
+    # JOB MATCH CONTENT (copy dari elif _active == 3)
     st.markdown("## Find Matching Jobs")
     st.markdown("Discover opportunities that match your skills and preferences")
 
@@ -762,11 +743,8 @@ elif _active == 3:
         else:
             st.warning("Please select at least one skill, location, and role")
 
-# ═══════════════════════════════════════════════════════
-# TAB 5: CAREER PATH
-# ═══════════════════════════════════════════════════════
-
-elif _active == 4:
+with tab_career:
+    # CAREER PATH CONTENT (copy dari elif _active == 4)
     st.markdown("## Career Development Plan")
     st.markdown("Get personalized career guidance and growth recommendations")
     
