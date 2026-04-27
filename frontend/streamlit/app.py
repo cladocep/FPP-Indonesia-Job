@@ -227,31 +227,21 @@ st.markdown("""
         text-align: center;
     }
     
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        display: flex;
-        justify-content: center;
-        background-color: white;
-        border-bottom: 2px solid #e5e7eb;
-        gap: 40px;
-        padding: 0;
-        margin: 0;
+    /* Custom tab bar link hover */
+    .custom-tab-bar a:hover {
+        color: #0066cc !important;
+        background: #f0f8ff !important;
     }
-    
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        padding: 0 8px;
-        background-color: white;
-        border-bottom: 3px solid transparent;
-        color: #4a5568;
-        font-weight: 500;
+
+    /* Smooth fade-in for tab content */
+    @keyframes tabFadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
-    
-    .stTabs [aria-selected="true"] {
-        color: #0066cc;
-        border-bottom-color: #0066cc !important;
+    .tab-content-wrapper {
+        animation: tabFadeIn 0.18s ease;
     }
-    
+
     /* Multiselect & Input Styling - Neon Green */
     .stMultiSelect [data-baseweb="tag"] {
         background-color: #c8ff00 !important;
@@ -317,14 +307,41 @@ st.markdown(f"""
 
 
 # ═══════════════════════════════════════════════════════
-# MAIN NAVIGATION - Using st.tabs (native & reliable)
+# MAIN NAVIGATION - Session-state based (no flash)
 # ═══════════════════════════════════════════════════════
 
-_tab_labels = ["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"]
+# Read ?tab=N query param and persist in session state
+_param_tab = st.query_params.get("tab", None)
+if _param_tab is not None:
+    try:
+        st.session_state.active_tab = int(_param_tab)
+    except (ValueError, TypeError):
+        pass
 
-tab_home, tab_chat, tab_cv, tab_jobs, tab_career = st.tabs(_tab_labels)
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = 0
 
-with tab_home:
+_active = st.session_state.active_tab
+
+# Custom HTML tab bar (links set ?tab=N, Python reads it on next render)
+_tab_items = ["Home", "Chat AI", "CV Analysis", "Job Match", "Career Path"]
+_bar = ['<div class="custom-tab-bar" style="display:flex; justify-content:center; background:white; border-bottom:2px solid #e5e7eb; padding:0; margin-bottom:0;">']
+for _i, _name in enumerate(_tab_items):
+    _on = _i == _active
+    _bar.append(
+        f'<a href="?tab={_i}" target="_self" style="display:inline-block; padding:14px 22px; '
+        f'text-decoration:none; font-weight:{"700" if _on else "500"}; '
+        f'color:{"#0066cc" if _on else "#4a5568"}; '
+        f'border-bottom:{"3px solid #0066cc" if _on else "3px solid transparent"}; '
+        f'background:white; transition:color 0.15s,border-color 0.15s;">{_name}</a>'
+    )
+_bar.append('</div>')
+st.markdown("".join(_bar), unsafe_allow_html=True)
+
+# Wrap all content in the fade-in div
+st.markdown('<div class="tab-content-wrapper">', unsafe_allow_html=True)
+
+if _active == 0:
     # HOME CONTENT
     col1, col2 = st.columns([2, 1], gap="large")
     
@@ -343,10 +360,10 @@ with tab_home:
         st.markdown(
             '<div style="display:flex; gap:12px; margin-top:8px;">'
             '<a href="?tab=1" target="_self" style="display:inline-block; background:#c8ff00; color:#0052a3;'
-            ' padding:12px 28px; border-radius:24px; font-weight:700; text-decoration:none; font-size:14px;">Try It Now</a>'
+            ' padding:12px 28px; border-radius:24px; font-weight:700; text-decoration:none; font-size:14px;">Chat with AI</a>'
             '<a href="?tab=2" target="_self" style="display:inline-block; background:white; color:#0066cc;'
             ' padding:12px 28px; border-radius:24px; font-weight:700; text-decoration:none;'
-            ' border:2px solid #0066cc; font-size:14px;">See How It Works</a>'
+            ' border:2px solid #0066cc; font-size:14px;">Analyze My CV</a>'
             '</div>',
             unsafe_allow_html=True
         )
@@ -432,7 +449,7 @@ with tab_home:
         </div>
         """, unsafe_allow_html=True)
 
-with tab_chat:
+elif _active == 1:
     # CHAT CONTENT (copy dari elif _active == 1)
     st.markdown("## Chat with AI Assistant")
     st.markdown("Ask me anything about your career")
@@ -522,7 +539,7 @@ with tab_chat:
                 st.session_state["pending_prompt"] = prompt
                 st.rerun()
 
-with tab_cv:
+elif _active == 2:
     # CV ANALYSIS CONTENT (copy dari elif _active == 2)
     st.markdown("## Upload & Analyze Your CV")
     st.markdown("Get instant feedback on your resume quality and recommendations for improvement")
@@ -602,7 +619,7 @@ with tab_cv:
         • **Stand Out** - Make better first impression
         """)
 
-with tab_jobs:
+elif _active == 3:
     # JOB MATCH CONTENT (copy dari elif _active == 3)
     st.markdown("## Find Matching Jobs")
     st.markdown("Discover opportunities that match your skills and preferences")
@@ -743,7 +760,7 @@ with tab_jobs:
         else:
             st.warning("Please select at least one skill, location, and role")
 
-with tab_career:
+elif _active == 4:
     # CAREER PATH CONTENT (copy dari elif _active == 4)
     st.markdown("## Career Development Plan")
     st.markdown("Get personalized career guidance and growth recommendations")
@@ -854,6 +871,8 @@ with tab_career:
                         st.metric("Progress", f"{pct}%")
         else:
             st.warning("⚠️ Please select at least one current role, target role, and skill")
+
+st.markdown('</div>', unsafe_allow_html=True)  # close tab-content-wrapper
 
 # ═══════════════════════════════════════════════════════
 # FOOTER
