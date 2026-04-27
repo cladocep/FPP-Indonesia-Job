@@ -370,7 +370,7 @@ if _active == 0:
 
         st.markdown("""
         <div style="margin-top: 16px; background: white; border: 1px solid #e5e7eb; padding: 16px 20px; border-radius: 8px; display: inline-block; font-size: 13px; color: #666;">
-            <span style="font-weight: 600; color: #0a2540;">TRUSTED BY 399+ Companies </span> • Waiting for You to Join Them!
+            <span style="font-weight: 600; color: #0a2540;">399+ Companies Are Hiring</span> • Your Next Role is Here
         </div>
         """, unsafe_allow_html=True)
     
@@ -381,7 +381,7 @@ if _active == 0:
         with col_stat1:
             st.metric("Opportunities Available", "470+")
         with col_stat2:
-            st.metric("Job Match Rate", "95%")
+            st.metric("Verified Companies", "399+")
         with col_stat1:
             st.metric("Avg. Match Time", "2 min")
         with col_stat2:
